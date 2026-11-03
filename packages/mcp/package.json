@@ -1,0 +1,21 @@
+{
+  "name": "@payguard/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.4.0",
+    "@payguard/backend": "*",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.32",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
+  }
+}

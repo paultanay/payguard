@@ -1,0 +1,25 @@
+{
+  "name": "payguard",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend",
+    "packages/mcp"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w packages/backend\" \"npm run dev -w packages/frontend\"",
+    "build": "npm run build -w packages/backend && npm run build -w packages/frontend",
+    "test": "npm run test -w packages/backend",
+    "test:run": "npm run test:run -w packages/backend",
+    "mcp": "npm run start -w packages/mcp"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "better-sqlite3@13.0.3": true
+  }
+}
