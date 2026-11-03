@@ -210,20 +210,18 @@ export async function runLabScenario(
     }
 
     case 'expired_intent': {
-      // Create intent with 1-second TTL
+      // Create intent with minimum TTL then immediately backdate expires_at
       const { intent, decision } = await intentService.createIntent({
         policy_id: policy.id, agent_id: agentId,
         amount_minor: 500, currency: 'USD',
         payee_id: 'merchant_demo', description: 'Intent that will expire',
         idempotency_key: `lab_expire_${nanoid(8)}`,
-        ttl_seconds: 0, // immediate expiry
+        ttl_seconds: 1,
       });
 
-      // Force the intent to look expired by backdating its expires_at
+      // Immediately backdate to force expiry
       db.prepare('UPDATE payment_intents SET expires_at = ? WHERE id = ?')
-        .run(new Date(Date.now() - 1000).toISOString(), intent.id);
-      // Reset state to PROPOSED so execute can run
-      db.prepare("UPDATE payment_intents SET state = 'PROPOSED' WHERE id = ?").run(intent.id);
+        .run(new Date(Date.now() - 5000).toISOString(), intent.id);
 
       const execResult = await intentService.executePayment({ intent_id: intent.id });
 
