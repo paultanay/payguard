@@ -49,9 +49,11 @@ export const CreateIntentInputSchema = z.object({
   idempotency_key: z.string().optional(),
   /** TTL in seconds, default 10 minutes */
   ttl_seconds: z.number().int().positive().default(600),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
-export type CreateIntentInput = z.infer<typeof CreateIntentInputSchema>;
+// `z.infer` describes parsed output, where defaulted fields are required.
+// Callers pass the schema input, so defaulted fields must remain optional here.
+export type CreateIntentInput = z.input<typeof CreateIntentInputSchema>;
 
 export interface SignedIntent {
   id: string;

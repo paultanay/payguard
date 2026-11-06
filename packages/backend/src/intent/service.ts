@@ -372,6 +372,18 @@ export class IntentService {
     if (!txn) {
       return { success: false, state: 'ERROR', error: 'Transaction not found', provider_mode: this.provider.mode };
     }
+    if (txn.state === 'SUCCEEDED') {
+      return {
+        success: true,
+        state: 'SUCCEEDED',
+        transaction_id: transactionId,
+        capture_id: txn.provider_id ?? undefined,
+        provider_mode: this.provider.mode,
+      };
+    }
+    if (txn.state !== 'PAYMENT_PENDING') {
+      return { success: false, state: txn.state, error: `Cannot capture transaction in state ${txn.state}`, provider_mode: this.provider.mode };
+    }
     if (!txn.provider_id) {
       return { success: false, state: 'ERROR', error: 'No provider order ID', provider_mode: this.provider.mode };
     }
@@ -391,6 +403,23 @@ export class IntentService {
       error_code: captureResult.error_code,
       capture_id: captureResult.capture_id,
     }, 'gateway');
+
+    if (captureResult.success && (
+      captureResult.amount_minor !== txn.amount_minor ||
+      captureResult.currency !== txn.currency
+    )) {
+      const reason = 'Provider capture amount or currency does not match the authorized intent';
+      this.updateTransaction(transactionId, { state: 'RECONCILIATION_REQUIRED', error_code: 'CAPTURE_DETAILS_MISMATCH' });
+      this.updateIntentState(txn.intent_id, 'RECONCILIATION_REQUIRED', new Date().toISOString());
+      this.auditService.record('RECONCILIATION_REQUIRED', txn.intent_id, 'intent', {
+        reason,
+        expected_amount_minor: txn.amount_minor,
+        actual_amount_minor: captureResult.amount_minor,
+        expected_currency: txn.currency,
+        actual_currency: captureResult.currency,
+      }, 'gateway');
+      return { success: false, state: 'RECONCILIATION_REQUIRED', error: reason, provider_mode: this.provider.mode };
+    }
 
     if (!captureResult.success) {
       if (captureResult.error_code === 'PROVIDER_TIMEOUT') {

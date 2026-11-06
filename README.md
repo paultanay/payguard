@@ -3,7 +3,7 @@
 > **PayPal AI Hackathon 2026 Submission**  
 > A local-first, developer-facing authorization gateway for AI-agent payment workflows.
 
-[![Tests](https://img.shields.io/badge/tests-62%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-74%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#license)
 [![Provider](https://img.shields.io/badge/provider-PayPal%20Sandbox-003087)](#paypal-sandbox-setup)
 
@@ -22,18 +22,21 @@ The LLM is never the final security boundary.
 
 ---
 
-## Key Differentiators
+## What PayGuard Demonstrates
 
-| Feature | PayGuard | Typical competitor |
+PayGuard is a local payment authorization gateway, not a shopping agent. Its clearest technical story is that each proposed payment is bound to a signed intent, checked by deterministic policy, and represented in a portable audit bundle.
+
+| Capability | What the demo proves | Boundary |
 |---|---|---|
-| **Atomic budget reservation** | SQLite `UPDATE … WHERE remaining >= amount` in `BEGIN IMMEDIATE` — concurrent over-spend impossible within one process | Read-check-write race condition |
-| **Signed canonical intents** | Ed25519 over all security fields; tamper of any field fails verification | Amount-only or no signing |
-| **Replay prevention** | Nonce + expiration + idempotency, durably stored | In-memory only |
-| **Reconciliation state** | Provider timeout → RECONCILIATION_REQUIRED, budget held | Silent failure or budget released |
-| **Attack simulator** | 12 scenarios calling real policy/transaction code | Scripted demo |
-| **Semantic intent check** | AI flags when proposal doesn't match original request | None |
-| **MCP v2 tools** | 5 real tools over stdio (2026-07-28 spec) | REST endpoints labeled as MCP |
-| **Audit hash chain** | SHA-256 chain, independent verifier detects tampering | Append-only log |
+| **Signed payment intents** | Ed25519 signature binds amount, currency, payee, agent, policy, nonce, and expiry | A local signing key; not an external identity proof |
+| **Atomic budget reservation** | SQLite serializes reservations and prevents over-spend in the tested single-process deployment | One process and one SQLite database |
+| **Replay and expiry checks** | Reused or expired intents are rejected before provider execution | Within this local service and database |
+| **PayTrace evidence** | Exported `.paytrace` JSON can be checked offline for hash and chain consistency | Project-specific format; not an external trust anchor |
+| **PayPal Sandbox checkout** | Buyer approval link followed by explicit capture after approval | Sandbox only; must be configured and exercised by the entrant |
+| **AI proposal and semantic check** | OpenAI model turns a request into a structured proposal and can flag a mismatch | Advisory only; deterministic policy remains authoritative |
+| **Security Lab** | Attack scenarios exercise real policy and transaction code | The lab always uses the simulator |
+
+Several current hackathon submissions describe overlapping AI payment guardrails. PayGuard's entry should focus on signed authorization details and portable tamper-evidence, and should avoid claims that the overall guardrail idea or individual features are unique.
 
 ---
 
@@ -79,20 +82,18 @@ Reservation  (validated transitions)
 
 Optional:
 - PayPal Sandbox credentials (from [developer.paypal.com](https://developer.paypal.com))
-- OpenAI API key (for AI proposal generation; falls back to deterministic without it)
+- OpenAI API key for actual AI proposal generation and semantic checks (without it, the app labels and uses a deterministic fallback)
 
 ---
 
 ## Installation
 
 ```bash
-git clone https://github.com/your-username/payguard.git
+git clone https://github.com/paultanay/payguard.git
 cd payguard
 
 # Install all workspace dependencies
 npm install
-npm install-scripts approve esbuild
-npm install-scripts approve better-sqlite3
 ```
 
 ---
@@ -155,11 +156,12 @@ curl http://localhost:3001/health
 ## Testing
 
 ```bash
-# Run all tests (unit + integration + concurrency)
-cd packages/backend
-npx vitest run --reporter=verbose
+# From the repository root
+npm test
+# Current suite: 74 tests across 10 test files
 
-# Output: 62 tests across 7 test files, all passing
+# Build backend, dashboard, and MCP package
+npm run build
 ```
 
 **Test categories:**
@@ -181,12 +183,13 @@ The MCP server exposes 5 tools over stdio using the official `@modelcontextproto
 - `get_audit_evidence` — retrieve audit trail + chain integrity
 
 **Configure in your MCP client** (e.g. Claude Desktop `mcp_settings.json`):
+Build first with `npm run build`, then point the client at the compiled entry point:
 ```json
 {
   "mcpServers": {
     "payguard": {
       "command": "node",
-      "args": ["--import", "tsx/esm", "/absolute/path/to/payguard/packages/mcp/src/index.ts"],
+      "args": ["/absolute/path/to/payguard/packages/mcp/dist/mcp/src/index.js"],
       "env": {
         "USE_SIMULATOR": "true",
         "DB_PATH": "/absolute/path/to/payguard/data/payguard.db"
@@ -196,12 +199,7 @@ The MCP server exposes 5 tools over stdio using the official `@modelcontextproto
 }
 ```
 
-**Test MCP from CLI:**
-```bash
-# Requires a policy to exist first (create via dashboard or API)
-echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | \
-  cd packages/mcp && USE_SIMULATOR=true npx tsx src/index.ts
-```
+The stdio server starts when launched by the client; its five tools can then be discovered and invoked through the MCP client.
 
 ---
 
@@ -211,24 +209,25 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | \
 2. Select **Sandbox** environment
 3. Create a new app or use the default
 4. Copy **Client ID** and **Secret** into `.env`
-5. Note your sandbox **merchant account email** — use it as `payee_id` in payment intents
+5. Note your sandbox **business account email** and use it as `payee_id` in payment intents. PayGuard sends email addresses using PayPal's `email_address` field; other payee IDs are sent as `merchant_id`.
 
 **Sandbox buyer approval flow:**
 The normal PayPal flow requires buyer approval at PayPal's URL. In sandbox mode:
-1. Create an intent via the dashboard or API
-2. Execute the intent → receive `approval_url`
-3. Open `approval_url` in a browser logged in as your **sandbox buyer account**
-4. Approve the payment
-5. You'll be redirected back to `http://localhost:3001/payment/return?intent_id=...`
-6. Call `POST /api/transactions/:id/capture` to capture
+1. Create and execute an intent from Agent Activity → receive a PayPal approval link
+2. Open the approval link in a browser logged in as your **sandbox buyer account**
+3. Approve the payment
+4. PayPal redirects back to the Transactions page
+5. Click **Capture** for the pending transaction. PayGuard waits for buyer approval before capture.
 
-The **simulator mode** skips buyer approval entirely and auto-approves, enabling fully offline demos.
+The **simulator mode** skips PayPal and buyer approval entirely. Use it for offline development; it does not demonstrate the required PayPal integration.
 
 ---
 
 ## Security Lab
 
 The Security Lab (dashboard → ⚔️ Security Lab) runs 12 attack scenarios against real application code:
+
+All Security Lab scenarios intentionally use the simulated provider, even if PayPal Sandbox is configured. The lab results are labeled SIMULATED; they are not evidence of a Sandbox payment.
 
 1. Valid payment (baseline)
 2. Exceed per-transaction limit
@@ -299,11 +298,17 @@ rm -f data/payguard.db
 
 MIT — see [LICENSE](./LICENSE)
 
+## AI Tools
+
+- **In the product:** OpenAI API (default model: `gpt-4o-mini`, configurable with `AI_MODEL`) generates structured purchase proposals and performs an advisory semantic check. Zod validates model output. The deterministic policy engine—not the model—authorizes or denies spending. Without an API key, the UI labels and uses a deterministic fallback; that mode is not an AI demonstration.
+- **During development:** OpenAI Codex assisted with implementation and review. The entrant should disclose development assistance accurately in the submission and remain able to explain and verify the work.
+
 ---
 
 ## Hackathon Submission
 
 - **Event**: [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/)
 - **Deadline**: November 12, 2026 12:00 PM Pacific
-- **Demo video**: [YouTube link — to be added before submission]
-- **Live demo / setup**: Follow README instructions above for full local reproduction
+- **Demo video**: Not recorded yet. The rules require a publicly visible YouTube video under 3 minutes that shows a working project.
+- **Live demo / setup**: Follow the local setup above. Configure PayPal Sandbox and an AI key to demonstrate both required technologies; simulator and deterministic fallback are offline modes.
+- **Readiness**: This is a prototype, not ready to submit until the PayPal Sandbox approval/capture flow and actual AI path are exercised, then the public repository and video are linked on Devpost.

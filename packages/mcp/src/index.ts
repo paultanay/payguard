@@ -11,14 +11,26 @@
  * Do not expose it to untrusted networks without authentication.
  */
 
+import dotenv from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/server';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
-import * as z from 'zod/v4';
+import * as z from 'zod';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function findProjectRoot(startDir: string): string {
+  for (let dir = startDir; ; dir = path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, 'packages', 'backend', 'package.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error('Could not locate PayGuard project root');
+  }
+}
+
+const projectRoot = findProjectRoot(__dirname);
+dotenv.config({ path: path.join(projectRoot, '.env'), quiet: true });
 
 // Import backend modules
 const { getDb } = await import('../../backend/src/db/connection.js');
@@ -29,14 +41,24 @@ const { PaymentSimulator } = await import('../../backend/src/provider/simulator.
 const { PayPalAdapter } = await import('../../backend/src/provider/paypal.js');
 
 // Initialize
-const dataDir = path.resolve(__dirname, '../../../data');
+const dataDir = path.join(projectRoot, 'data');
 fs.mkdirSync(dataDir, { recursive: true });
-const db = getDb(path.join(dataDir, 'payguard.db'));
+const dbPath = process.env.DB_PATH
+  ? path.resolve(projectRoot, process.env.DB_PATH)
+  : path.join(dataDir, 'payguard.db');
+const db = getDb(dbPath);
 
-const useSimulator = !process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET;
+const useSimulator =
+  !process.env.PAYPAL_CLIENT_ID ||
+  !process.env.PAYPAL_CLIENT_SECRET ||
+  process.env.USE_SIMULATOR === 'true';
 const provider = useSimulator
   ? new PaymentSimulator()
-  : new PayPalAdapter(process.env.PAYPAL_CLIENT_ID!, process.env.PAYPAL_CLIENT_SECRET!);
+  : new PayPalAdapter(
+      process.env.PAYPAL_CLIENT_ID!,
+      process.env.PAYPAL_CLIENT_SECRET!,
+      process.env.PAYPAL_BASE_URL ?? 'https://api-m.sandbox.paypal.com',
+    );
 
 const policyEngine = new PolicyEngine(db);
 const intentService = new IntentService(db, provider);
@@ -55,7 +77,7 @@ serveStdio(() => {
       description: `Create a structured payment proposal and evaluate it against the active policy.
 Returns the signed intent ID, policy decision (ALLOW/REQUIRE_APPROVAL/DENY), and reason.
 The AI agent must not execute payments — only create proposals for human review.`,
-      inputSchema: z.object({
+      inputSchema: {
         policy_id: z.string().describe('ID of the policy to evaluate against'),
         agent_id: z.string().describe('ID of the requesting agent'),
         amount_minor: z.number().int().positive().describe('Amount in minor units (e.g. USD cents: $19.99 = 1999)'),
@@ -65,7 +87,7 @@ The AI agent must not execute payments — only create proposals for human revie
         description: z.string().describe('Description of what is being purchased'),
         idempotency_key: z.string().optional().describe('Optional idempotency key for safe retries'),
         ttl_seconds: z.number().int().positive().optional().describe('Intent TTL in seconds (default: 600)'),
-      }),
+      },
     },
     async (args) => {
       try {
@@ -118,14 +140,14 @@ The AI agent must not execute payments — only create proposals for human revie
     {
       description: `Evaluate a payment request against a policy WITHOUT creating an intent or reserving budget.
 Use this to check if a payment would be allowed before committing to it.`,
-      inputSchema: z.object({
+      inputSchema: {
         policy_id: z.string().describe('Policy ID to evaluate'),
         agent_id: z.string().describe('Agent ID'),
         operation: z.string().default('purchase').describe('Operation type'),
         amount_minor: z.number().int().positive().describe('Amount in minor units'),
         currency: z.string().length(3).describe('Currency code'),
         payee_id: z.string().describe('Payee identifier'),
-      }),
+      },
     },
     async (args) => {
       const result = policyEngine.evaluate({
@@ -157,9 +179,9 @@ Use this to check if a payment would be allowed before committing to it.`,
     'get_payment_status',
     {
       description: 'Get the current status of a payment intent and its associated transaction.',
-      inputSchema: z.object({
+      inputSchema: {
         intent_id: z.string().describe('The payment intent ID (starts with int_)'),
-      }),
+      },
     },
     async (args) => {
       const intent = intentService.getIntent(args.intent_id);
@@ -204,9 +226,9 @@ Use this to check if a payment would be allowed before committing to it.`,
       description: `Request human approval for a payment that requires it.
 Returns the approval ID and a message instructing the human to approve via the dashboard.
 This tool does NOT execute the payment — it only signals that approval is needed.`,
-      inputSchema: z.object({
+      inputSchema: {
         intent_id: z.string().describe('The intent ID that needs approval'),
-      }),
+      },
     },
     async (args) => {
       const intent = intentService.getIntent(args.intent_id);
@@ -261,9 +283,9 @@ This tool does NOT execute the payment — it only signals that approval is need
     {
       description: `Retrieve audit trail events for a payment intent and verify chain integrity.
 Returns the event timeline and integrity verification result.`,
-      inputSchema: z.object({
+      inputSchema: {
         intent_id: z.string().describe('The payment intent ID to get audit evidence for'),
-      }),
+      },
     },
     async (args) => {
       const events = auditService.getEvents({ entity_id: args.intent_id, limit: 50 });

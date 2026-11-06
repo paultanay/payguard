@@ -13,6 +13,7 @@ export default function AgentActivity() {
   const [proposal, setProposal] = useState<any>(null);
   const [proposalLoading, setProposalLoading] = useState(false);
   const [semanticCheck, setSemanticCheck] = useState<any>(null);
+  const [approvalUrl, setApprovalUrl] = useState('');
   const [actionMsg, setActionMsg] = useState('');
 
   const load = useCallback(async () => {
@@ -34,7 +35,7 @@ export default function AgentActivity() {
 
   async function generateProposal() {
     if (!aiRequest.trim()) return;
-    setProposalLoading(true); setProposal(null); setSemanticCheck(null); setActionMsg('');
+    setProposalLoading(true); setProposal(null); setSemanticCheck(null); setApprovalUrl(''); setActionMsg('');
     try {
       const { proposal } = await api.generateProposal(aiRequest, selectedPolicy || undefined);
       setProposal(proposal);
@@ -64,10 +65,10 @@ export default function AgentActivity() {
 
       if (result.decision === 'ALLOW') {
         const exec = await api.executeIntent(result.intent.id);
-        if (exec.success && exec.transaction_id) {
-          const cap = await api.captureTransaction(exec.transaction_id);
-          setActionMsg(`✅ Payment ${cap.state} — Intent: ${result.intent.id}`);
-        } else if (exec.state === 'PAYMENT_PENDING' && exec.transaction_id) {
+        if (exec.approval_url) {
+          setApprovalUrl(exec.approval_url);
+          setActionMsg('Policy approved and budget reserved. Complete buyer approval in PayPal Sandbox, return here, then capture from Transactions.');
+        } else if (exec.success && exec.transaction_id) {
           const cap = await api.captureTransaction(exec.transaction_id);
           setActionMsg(`✅ Payment ${cap.state} — Intent: ${result.intent.id}`);
         } else {
@@ -169,6 +170,7 @@ export default function AgentActivity() {
         {actionMsg && (
           <div style={{ marginTop: 12, padding: 12, background: '#3b82f615', borderRadius: 6, color: 'var(--blue)', fontSize: 13 }}>
             {actionMsg}
+            {approvalUrl && <div style={{ marginTop: 8 }}><a href={approvalUrl} target="_blank" rel="noreferrer">Continue to PayPal Sandbox approval ↗</a></div>}
           </div>
         )}
       </Card>

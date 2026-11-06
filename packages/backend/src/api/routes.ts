@@ -48,7 +48,7 @@ export function registerRoutes(
     }).safeParse(req.body);
 
     if (!body.success) {
-      return reply.code(400).send({ error: 'Validation failed', details: body.error.errors });
+      return reply.code(400).send({ error: 'Validation failed', details: body.error.issues });
     }
 
     try {
@@ -79,7 +79,7 @@ export function registerRoutes(
     }).safeParse(req.body);
 
     if (!body.success) {
-      return reply.code(400).send({ error: 'Validation failed', details: body.error.errors });
+      return reply.code(400).send({ error: 'Validation failed', details: body.error.issues });
     }
 
     const updated = policyEngine.updatePolicy(id, body.data);
@@ -105,7 +105,7 @@ export function registerRoutes(
     }).safeParse(req.body);
 
     if (!body.success) {
-      return reply.code(400).send({ error: 'Validation failed', details: body.error.errors });
+      return reply.code(400).send({ error: 'Validation failed', details: body.error.issues });
     }
 
     const policy = body.data.policy_id ? policyEngine.getPolicyById(body.data.policy_id) : null;
@@ -130,7 +130,7 @@ export function registerRoutes(
     }).safeParse(req.body);
 
     if (!body.success) {
-      return reply.code(400).send({ error: 'Validation failed', details: body.error.errors });
+      return reply.code(400).send({ error: 'Validation failed', details: body.error.issues });
     }
 
     const intent = intentService.getIntent(body.data.intent_id);
@@ -165,11 +165,11 @@ export function registerRoutes(
       description: z.string().min(1),
       idempotency_key: z.string().optional(),
       ttl_seconds: z.number().int().positive().optional(),
-      metadata: z.record(z.unknown()).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
     }).safeParse(req.body);
 
     if (!body.success) {
-      return reply.code(400).send({ error: 'Validation failed', details: body.error.errors });
+      return reply.code(400).send({ error: 'Validation failed', details: body.error.issues });
     }
 
     try {
@@ -385,7 +385,7 @@ export function registerRoutes(
     }
 
     const { runLabScenario } = await import('./lab.js');
-    const result = await runLabScenario(body.data.scenario, db, provider, body.data.policy_id);
+    const result = await runLabScenario(body.data.scenario, db, body.data.policy_id);
     return result;
   });
 }

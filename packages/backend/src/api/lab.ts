@@ -8,7 +8,6 @@ import type Database from 'better-sqlite3';
 import { PolicyEngine } from '../policy/engine.js';
 import { IntentService } from '../intent/service.js';
 import { AuditService } from '../audit/service.js';
-import type { PaymentProvider } from '../provider/interface.js';
 import { PaymentSimulator } from '../provider/simulator.js';
 import { nanoid } from 'nanoid';
 import { sha256 } from '../crypto/hash.js';
@@ -30,7 +29,6 @@ export interface LabResult {
 export async function runLabScenario(
   scenario: string,
   db: Database.Database,
-  provider: PaymentProvider,
   policyId?: string,
 ): Promise<LabResult> {
   const policyEngine = new PolicyEngine(db);
@@ -91,7 +89,7 @@ export async function runLabScenario(
         expected_result: 'ALLOW → SUCCEEDED',
         actual_result: finalIntent?.state ?? decision,
         provider_invoked: providerInvoked,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: finalIntent?.state === 'SUCCEEDED',
         audit_events: events.map((e) => `${e.event_type}: ${e.entity_id.slice(0, 16)}`),
         details: { intent_id: intent.id, decision, exec_result: execResult },
@@ -117,7 +115,7 @@ export async function runLabScenario(
         expected_result: 'DENY — amount exceeds per-transaction limit',
         actual_result: `${decision}: ${reason}`,
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: decision === 'DENY',
         audit_events: events.map((e) => `${e.event_type}`),
         details: { intent_id: intent.id, decision, reason },
@@ -167,7 +165,7 @@ export async function runLabScenario(
         expected_result: 'Second payment DENY — budget exhausted',
         actual_result: `${d2}: ${r2}`,
         provider_invoked: providerInvoked,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: d2 === 'DENY',
         audit_events: [],
         details: { first_decision: d1, second_decision: d2, reason: r2 },
@@ -202,7 +200,7 @@ export async function runLabScenario(
         expected_result: 'DENY — payee not authorized',
         actual_result: `${decision}: ${reason}`,
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: decision === 'DENY',
         audit_events: [],
         details: { decision, reason },
@@ -232,7 +230,7 @@ export async function runLabScenario(
         expected_result: 'EXPIRED — intent rejected before provider call',
         actual_result: execResult.state,
         provider_invoked: execResult.state !== 'EXPIRED',
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: execResult.state === 'EXPIRED' && !execResult.success,
         audit_events: [],
         details: { intent_id: intent.id, initial_decision: decision, exec_result: execResult },
@@ -265,7 +263,7 @@ export async function runLabScenario(
         expected_result: 'First: SUCCEEDED; Second: REPLAY rejected',
         actual_result: `First: ${firstResult?.state ?? decision}; Second: ${replayResult.state}`,
         provider_invoked: providerInvoked,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: !replayResult.success && replayResult.state === 'REPLAY',
         audit_events: [],
         details: { first_result: firstResult, replay_result: replayResult },
@@ -293,7 +291,7 @@ export async function runLabScenario(
         expected_result: 'FAILED — signature verification detects tampering',
         actual_result: execResult.state + (execResult.error ? `: ${execResult.error}` : ''),
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: !execResult.success && (execResult.error ?? '').toLowerCase().includes('signature'),
         audit_events: [],
         details: { intent_id: intent.id, tampered_amount: 9999999, exec_result: execResult },
@@ -337,7 +335,7 @@ export async function runLabScenario(
       // Execute all three simultaneously (SQLite serializes these)
       const results = await Promise.allSettled(
         intents.map(({ intent, decision }) =>
-          decision === 'ALLOW' ? intentService.executePayment({ intent_id: intent.id }) : Promise.resolve({ success: false, state: 'DENIED', provider_mode: provider.mode })
+          decision === 'ALLOW' ? intentService.executePayment({ intent_id: intent.id }) : Promise.resolve({ success: false, state: 'DENIED', provider_mode: simulator.mode })
         )
       );
 
@@ -351,7 +349,7 @@ export async function runLabScenario(
         expected_result: 'At most 2 succeed, at least 1 denied (budget constraint)',
         actual_result: `${succeeded} succeeded, ${failed} failed`,
         provider_invoked: succeeded > 0,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: succeeded <= 2 && failed >= 1,
         audit_events: [],
         details: { succeeded, failed, results: results.map((r) => r.status === 'fulfilled' ? (r as PromiseFulfilledResult<{ state: string }>).value.state : 'error') },
@@ -378,7 +376,7 @@ export async function runLabScenario(
         expected_result: 'Schema validation rejects malformed AI output',
         actual_result: parseError ? `Rejected: ${parseError.slice(0, 200)}` : 'UNEXPECTED: validation passed',
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: !!parseError,
         audit_events: [],
         details: { invalid_output: invalidProposal, parse_error: parseError },
@@ -408,7 +406,7 @@ export async function runLabScenario(
         expected_result: 'RECONCILIATION_REQUIRED — budget NOT released, manual check needed',
         actual_result: execResult?.state ?? 'not_executed',
         provider_invoked: providerInvoked,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: execResult?.state === 'RECONCILIATION_REQUIRED',
         audit_events: [],
         details: { intent_id: intent.id, exec_result: execResult },
@@ -439,7 +437,7 @@ export async function runLabScenario(
         expected_result: 'Audit chain verification detects tampering',
         actual_result: verification.valid ? 'UNEXPECTED: verification passed' : `Detected: ${verification.errors.join('; ')}`,
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: !verification.valid,
         audit_events: [],
         details: { verification },
@@ -473,7 +471,7 @@ export async function runLabScenario(
         expected_result: 'All 5 rejected by schema validation',
         actual_result: `${results.filter(r => r === 'rejected').length}/5 rejected`,
         provider_invoked: false,
-        provider_mode: provider.mode,
+        provider_mode: simulator.mode,
         passed: allRejected,
         audit_events: [],
         details: { results },
@@ -485,7 +483,7 @@ export async function runLabScenario(
         scenario, description: 'Unknown scenario',
         policy_summary: '', input_summary: '',
         expected_result: '', actual_result: 'Scenario not implemented',
-        provider_invoked: false, provider_mode: provider.mode,
+        provider_invoked: false, provider_mode: simulator.mode,
         passed: false, audit_events: [], details: {},
       };
   }

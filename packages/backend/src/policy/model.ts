@@ -36,7 +36,7 @@ export const PolicySchema = z.object({
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   expires_at: z.string().datetime().nullable().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Policy = z.infer<typeof PolicySchema>;

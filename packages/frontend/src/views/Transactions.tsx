@@ -16,7 +16,14 @@ export default function Transactions() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); const t = setInterval(load, 5000); return () => clearInterval(t); }, [load]);
+  useEffect(() => {
+    load();
+    const paymentStatus = new URLSearchParams(window.location.search).get('payment');
+    if (paymentStatus === 'returned') setActionMsg('PayPal returned you after buyer approval. Review the pending transaction below and click Capture.');
+    if (paymentStatus === 'cancelled') setActionMsg('PayPal checkout was cancelled. The transaction remains pending; review it before taking action.');
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [load]);
 
   async function capture(id: string) {
     setActionMsg('');

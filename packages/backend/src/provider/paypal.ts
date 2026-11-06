@@ -19,7 +19,6 @@ import type {
 } from './interface.js';
 
 const SANDBOX_BASE = 'https://api-m.sandbox.paypal.com';
-const LIVE_BASE = 'https://api-m.paypal.com';
 
 export class PayPalAdapter implements PaymentProvider {
   readonly mode = 'sandbox' as const;
@@ -31,9 +30,9 @@ export class PayPalAdapter implements PaymentProvider {
     private clientSecret: string,
     private baseUrl: string = SANDBOX_BASE,
   ) {
-    // Refuse to use live base URL
-    if (baseUrl === LIVE_BASE || baseUrl.includes('api-m.paypal.com') && !baseUrl.includes('sandbox')) {
-      throw new Error('PayGuard refuses to use live PayPal credentials. Use sandbox only.');
+    // Only send credentials to the official Sandbox API host.
+    if (baseUrl !== SANDBOX_BASE) {
+      throw new Error(`PayGuard only allows the official PayPal Sandbox URL: ${SANDBOX_BASE}`);
     }
   }
 
@@ -112,9 +111,9 @@ export class PayPalAdapter implements PaymentProvider {
             currency_code: req.currency,
             value: decimalAmount,
           },
-          payee: {
-            merchant_id: req.payee_id,
-          },
+          payee: req.payee_id.includes('@')
+            ? { email_address: req.payee_id }
+            : { merchant_id: req.payee_id },
         },
       ],
       application_context: {

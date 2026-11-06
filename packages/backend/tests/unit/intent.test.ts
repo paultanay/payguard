@@ -20,6 +20,23 @@ describe('Payment Intent', () => {
       expect(intent.canonical_hash).toHaveLength(64);
       expect(intent.amount_minor).toBe(1999);
       expect(intent.state).toBe('PROPOSED');
+      expect(intent.operation).toBe('purchase');
+    });
+
+    it('applies the default expiry when ttl_seconds is omitted', async () => {
+      const before = Date.now();
+      const intent = await createSignedIntent({
+        policy_id: 'pol_test',
+        agent_id: 'agent_1',
+        amount_minor: 1999,
+        currency: 'USD',
+        payee_id: 'merchant_a',
+        description: 'Wireless keyboard',
+      }, 1);
+
+      const expiry = Date.parse(intent.expires_at);
+      expect(expiry).toBeGreaterThanOrEqual(before + 599_000);
+      expect(expiry).toBeLessThanOrEqual(Date.now() + 600_000);
     });
 
     it('uses integer minor units (no floating point)', async () => {

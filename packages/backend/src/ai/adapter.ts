@@ -79,7 +79,8 @@ Respond with ONLY a JSON object matching this schema (no markdown):
 }
 
 Currency policy: ${context?.policy_currency ?? 'USD'}
-Max amount: ${context?.policy_max_amount_minor ? context.policy_max_amount_minor + ' minor units' : 'not specified'}`;
+Policy max amount: ${context?.policy_max_amount_minor ? context.policy_max_amount_minor + ' minor units' : 'not specified'}.
+This limit is informational only. Extract the user's requested amount faithfully; never lower or clamp it to fit a policy. The deterministic policy engine will decide whether the amount is allowed.`;
 
       const { default: OpenAI } = await import('openai');
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -191,8 +192,6 @@ Proposed payment: ${proposedIntent.description} for ${proposedIntent.amount_mino
     // Extract amount from request if mentioned
     const amountMatch = userRequest.match(/\$(\d+(?:\.\d{1,2})?)/);
     let estimatedAmount = amountMatch ? Math.round(parseFloat(amountMatch[1]) * 100) : Math.min(2999, maxAmount);
-
-    if (estimatedAmount > maxAmount) estimatedAmount = maxAmount;
 
     return {
       item_name: userRequest.slice(0, 100),

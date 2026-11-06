@@ -3,13 +3,12 @@
 ## Running All Tests
 
 ```bash
-cd packages/backend
-npx vitest run --reporter=verbose
+npm test
 ```
 
-**Expected output: 62 tests passing, 0 failing**
+**Current output: 74 tests passing, 0 failing across 10 files**
 
-Last verified: 2026-11-02, Node.js v26.10.0
+Last verified: 2026-11-07, Node.js v26.10.0
 
 ---
 
@@ -103,7 +102,7 @@ npx vitest run tests/unit/audit.test.ts
 
 ---
 
-#### `tests/unit/intent.test.ts` (9 tests)
+#### `tests/unit/intent.test.ts` (10 tests)
 
 | Test | Security Invariant |
 |---|---|
@@ -116,16 +115,23 @@ npx vitest run tests/unit/audit.test.ts
 | Fails with wrong public key | Key binding |
 | Detects expired intent | **Invariant 5**: Expiration |
 | Valid intent is not expired | Expiration baseline |
+| Applies default expiry when TTL is omitted | Schema default and input typing |
 
 ```bash
 npx vitest run tests/unit/intent.test.ts
 ```
 
+#### Additional Unit Tests
+
+- `tests/unit/ai.test.ts` verifies the deterministic fallback does not lower an explicitly requested amount to fit a policy limit.
+- `tests/unit/paypal.test.ts` verifies email payee payloads, approval links, and rejection of non-Sandbox API hosts.
+- `tests/unit/paytrace.test.ts` covers portable audit bundle structure, chain integrity, and tamper detection (7 tests).
+
 ---
 
 ### Integration Tests
 
-#### `tests/integration/payment-flow.test.ts` (7 tests)
+#### `tests/integration/payment-flow.test.ts` (8 tests)
 
 | Test | Security Invariant |
 |---|---|
@@ -134,6 +140,7 @@ npx vitest run tests/unit/intent.test.ts
 | Over-limit amount denied, provider not called | **Invariant 11**: Forbidden request never reaches provider |
 | Expired intent rejected before provider call | **Invariant 5**: Expiration enforcement |
 | Provider timeout → RECONCILIATION_REQUIRED, budget held | **Invariant 9**: Timeout ≠ payment failure |
+| Capture amount/currency mismatch → reconciliation, budget held | Provider result binding |
 | Tampered signature fails verification | **Invariant 4**: Signature tamper detection |
 | Idempotency: same key returns same intent | **Invariant 19**: Idempotent retries |
 

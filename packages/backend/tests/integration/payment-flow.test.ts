@@ -4,6 +4,7 @@ import { PolicyEngine } from '../../src/policy/engine.js';
 import { IntentService } from '../../src/intent/service.js';
 import { PaymentSimulator } from '../../src/provider/simulator.js';
 import { AuditService } from '../../src/audit/service.js';
+import type { PaymentProvider } from '../../src/provider/interface.js';
 import { nanoid } from 'nanoid';
 import type Database from 'better-sqlite3';
 
@@ -70,6 +71,29 @@ describe('Payment Flow Integration', () => {
     // 6. Audit chain intact
     const verification = audit.verify();
     expect(verification.valid).toBe(true);
+  });
+
+  it('holds the reservation for reconciliation when provider capture details do not match the intent', async () => {
+    const mismatchedProvider: PaymentProvider = {
+      mode: 'sandbox',
+      async createOrder() { return { success: true, provider_order_id: 'ORDER-MISMATCH' }; },
+      async captureOrder() {
+        return { success: true, capture_id: 'CAP-MISMATCH', status: 'COMPLETED', amount_minor: 1, currency: 'USD' };
+      },
+      async getOrder() { return { found: false }; },
+    };
+    const guardedService = new IntentService(db, mismatchedProvider);
+    const { intent } = await guardedService.createIntent({
+      policy_id: policyId, agent_id: 'test_agent', amount_minor: 1500,
+      currency: 'USD', payee_id: 'merchant_demo', description: 'Mismatch test',
+    });
+
+    const execution = await guardedService.executePayment({ intent_id: intent.id });
+    const capture = await guardedService.capturePayment(execution.transaction_id!);
+
+    expect(capture.state).toBe('RECONCILIATION_REQUIRED');
+    expect(guardedService.getIntent(intent.id)?.state).toBe('RECONCILIATION_REQUIRED');
+    expect(policyEngine.getPolicyById(policyId)?.remaining_budget_minor).toBe(18500);
   });
 
   it('replay is rejected after success', async () => {

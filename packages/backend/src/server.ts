@@ -1,3 +1,4 @@
+import dotenv from 'dotenv';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import staticFiles from '@fastify/static';
@@ -11,6 +12,17 @@ import type { PaymentProvider } from './provider/interface.js';
 import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function findProjectRoot(startDir: string): string {
+  for (let dir = startDir; ; dir = path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, 'packages', 'backend', 'package.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) throw new Error('Could not locate PayGuard project root');
+  }
+}
+
+const projectRoot = findProjectRoot(__dirname);
+dotenv.config({ path: path.join(projectRoot, '.env'), quiet: true });
 
 async function buildServer() {
   const app = Fastify({
@@ -27,7 +39,7 @@ async function buildServer() {
   });
 
   // Serve frontend static files in production
-  const frontendDist = path.join(__dirname, '../../../frontend/dist');
+  const frontendDist = path.join(projectRoot, 'packages', 'frontend', 'dist');
   if (fs.existsSync(frontendDist)) {
     await app.register(staticFiles, {
       root: frontendDist,
@@ -55,9 +67,12 @@ async function buildServer() {
   }
 
   // Initialize database
-  const dataDir = path.join(__dirname, '../../../data');
+  const dataDir = path.join(projectRoot, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
-  const db = getDb(path.join(dataDir, 'payguard.db'));
+  const dbPath = process.env.DB_PATH
+    ? path.resolve(projectRoot, process.env.DB_PATH)
+    : path.join(dataDir, 'payguard.db');
+  const db = getDb(dbPath);
 
   // Register all routes
   registerRoutes(app, db, provider);
@@ -68,7 +83,7 @@ async function buildServer() {
 async function start() {
   const app = await buildServer();
   const port = parseInt(process.env.PORT ?? '3001');
-  const host = process.env.HOST ?? '0.0.0.0';
+  const host = process.env.HOST ?? '127.0.0.1';
 
   try {
     await app.listen({ port, host });

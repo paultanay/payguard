@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { SCHEMA_SQL } from './schema.js';
 
@@ -15,9 +16,9 @@ export function getDb(dbPath?: string): Database.Database {
     process.env.DB_PATH ??
     path.join(__dirname, '../../../../data/payguard.db');
 
-  // Ensure directory exists
+  // Ensure directory exists before SQLite opens the database file.
   const dir = path.dirname(resolvedPath);
-  import('fs').then((fs) => fs.mkdirSync(dir, { recursive: true }));
+  fs.mkdirSync(dir, { recursive: true });
 
   _db = new Database(resolvedPath);
   _db.exec(SCHEMA_SQL);

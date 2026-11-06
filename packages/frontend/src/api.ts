@@ -32,7 +32,12 @@ export const api = {
   listIntents: () => req<any>('GET', '/intents'),
   createIntent: (body: any) => req<any>('POST', '/intents', body),
   getIntent: (id: string) => req<any>('GET', `/intents/${id}`),
-  executeIntent: (id: string) => req<any>('POST', `/intents/${id}/execute`, {}),
+  executeIntent: (id: string) => {
+    const frontendUrl = window.location.origin;
+    const returnUrl = new URL(`/transactions?payment=returned&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
+    const cancelUrl = new URL(`/transactions?payment=cancelled&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
+    return req<any>('POST', `/intents/${id}/execute`, { return_url: returnUrl, cancel_url: cancelUrl });
+  },
 
   // Transactions
   listTransactions: () => req<any>('GET', '/transactions'),

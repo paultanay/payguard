@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/mcp/src/index.js",
   "scripts": {
     "start": "tsx src/index.ts",
     "build": "tsc"
@@ -11,7 +11,8 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.4.0",
     "@payguard/backend": "*",
-    "zod": "3.25.67"
+    "dotenv": "^18.0.9",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "22.15.32",

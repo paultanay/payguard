@@ -1,95 +1,45 @@
-# PayGuard — Project Status
+# PayGuard — Current Status
 
-**Last updated**: 2026-11-03  
-**Submission deadline**: 2026-11-12 12:00 PM Pacific (10 days remaining)
+**Reviewed:** November 7, 2026 (IST)
+**Hackathon deadline:** November 12, 2026, 12:00 PM Pacific / November 13, 2026, 1:30 AM IST
 
----
+## Readiness
 
-## Current State: Core Complete, Ready for PayPal Sandbox Testing
+**The local prototype is runnable; the submission is not ready yet.** Code-level checks pass, but neither PayPal Sandbox nor the real AI provider has been exercised because credentials are not configured. The current GitHub remote also did not resolve as a public repository when checked. The video and Devpost entry are not complete.
 
-### What Works (Tested)
+## Verified in this workspace
 
-| Component | Status | Evidence |
-|---|---|---|
-| Policy engine (ALLOW/DENY/REQUIRE_APPROVAL) | ✅ Complete | 15 unit tests passing |
-| Ed25519 signed payment intents | ✅ Complete | 9 unit tests passing |
-| Atomic budget reservations (SQLite BEGIN IMMEDIATE) | ✅ Complete | 9 unit tests + 4 concurrency tests |
-| Payment state machine | ✅ Complete | Integration tests |
-| Replay prevention (nonce + expiry + state check) | ✅ Complete | Integration tests |
-| Audit hash chain + tamper detection | ✅ Complete | 8 unit tests |
-| .paytrace portable audit bundle | ✅ Complete | 7 unit tests |
-| Payment simulator (offline, auto-approves) | ✅ Complete | All integration tests |
-| PayPal Sandbox adapter | ✅ Code complete | Not tested (no credentials) |
-| Fastify HTTP API (all routes) | ✅ Complete | E2E API test |
-| React dashboard (all 6 views) | ✅ Built | Frontend compiles, served |
-| Security lab (12 attack scenarios) | ✅ Complete | Scenarios call real logic |
-| AI adapter (proposal + semantic check) | ✅ Complete | Graceful fallback without key |
-| MCP server (5 tools, stdio, v2 spec) | ✅ Code complete | Not verified with MCP client |
-| Idempotency | ✅ Complete | Integration test |
-| Reconciliation on provider timeout | ✅ Complete | Integration test |
+- `npm test`: 74 tests pass across 10 test files.
+- `npm run build`: backend, frontend, and MCP package build successfully.
+- `npm audit`: zero known vulnerabilities at review time.
+- Built backend starts with an isolated temporary DB; `/health`, dashboard HTML, and compiled asset returned HTTP 200.
+- MCP stdio initialized, listed all five tools, and returned a successful `get_audit_evidence` tool call.
+- All 12 Security Lab scenarios passed against separate in-memory databases; every result reported simulated provider mode.
+- AI fallback preserves an explicitly requested over-limit amount so policy—not proposal generation—can deny it.
+- PayPal Sandbox adapter supports email payees and permits only PayPal's official Sandbox API host.
+- Dashboard preserves buyer approval and waits for manual capture.
+- A capture amount/currency mismatch enters reconciliation and holds the budget reservation.
+- Security Lab labels its own payment provider as simulated.
+- Backend and MCP startup respect `DB_PATH`; `.env` is loaded quietly; the API defaults to loopback.
 
-**Test results**: 69 tests / 8 test files / all passing  
-**Server**: Running at http://localhost:3001  
-**Dashboard**: http://localhost:5173
+## Required before submitting
 
----
+1. Configure PayPal Sandbox client credentials and a sandbox business/buyer account. Complete one real buyer approval and capture from the dashboard.
+2. Configure an OpenAI API key and run a real proposal plus semantic check. Record which model/provider actually ran.
+3. Verify an over-limit proposal is denied without a PayPal request.
+4. Verify the GitHub repository is public, contains all source and instructions, and displays the MIT license.
+5. Record an English video under 3 minutes showing the actual working flow, upload it publicly to YouTube, and add that link to Devpost.
+6. Complete the Devpost form, disclose runtime AI and coding-assistant tools accurately, and submit before the deadline.
 
-## Actual Test Results (Run 2026-11-03)
+## Competitive position
 
-```
-Test Files  8 passed (8)
-     Tests  69 passed (69)
-  Duration  ~900ms
-```
+Several entries publicly describe similar AI payment guardrails, including Sandbox checkout, approvals, AI risk review, MCP, or atomic budgets. PayGuard's clearest demonstrable angle is its signed authorization intent and offline-verifiable `.paytrace` evidence bundle. Do not claim that the broad concept or these individual features are unique.
 
-E2E API verification:
-- Policy created ✅
-- Intent created (ALLOW) ✅
-- Payment executed (PAYMENT_PENDING) ✅
-- Payment captured (SUCCEEDED, CaptureID: SIM-xxx) ✅
-- Over-limit denied (DENY: Amount exceeds per-transaction limit) ✅
-- Audit chain verified (valid: true, 12 events) ✅
-- Tampered payload detected (Signature invalid: Canonical hash mismatch) ✅
+## Limitations
 
----
-
-## Blockers
-
-| Blocker | Severity | Notes |
-|---|---|---|
-| PayPal Sandbox credentials not available | Medium | Offline/simulated path works. Sandbox test must be done before submission to satisfy criterion 13. |
-| MCP client not connected | Low | Server code is correct; needs `mcp_settings.json` config to test with actual client |
-| No authentication on API | Low | Acceptable for hackathon demo; documented limitation |
-
----
-
-## What Remains
-
-1. **PayPal Sandbox test** — requires credentials. Instructions in README. Run `POST /api/intents/{id}/execute` with real credentials set to get a real `approval_url`, complete buyer approval flow, capture.
-2. **MCP live test** — connect an MCP client (e.g. Claude Desktop) using the config in README and invoke `create_payment_proposal` tool.
-3. **Demo video recording** — follow DEMO_SCRIPT.md, record under 3 minutes, upload to YouTube.
-4. **Devpost submission** — public repo, YouTube link, project description.
-
----
-
-## Submission Checklist
-
-- [x] Working application integrating PayPal (Sandbox adapter + simulator)
-- [x] AI integration (proposal generation + semantic check)
-- [x] Public code repository (pending publish)
-- [x] Open-source license (MIT)
-- [x] Complete setup instructions (README.md)
-- [x] Offline reproduction without credentials
-- [ ] Live PayPal Sandbox transaction verification
-- [ ] YouTube video under 3 minutes
-- [ ] Devpost submission form completed
-- [ ] MCP client live test
-
----
-
-## Known Limitations (Documented)
-
-- Budget invariant guaranteed within one process only (single SQLite file)
-- Audit chain detects external tampering; not resistant to insider with DB + key access
-- No API authentication (production would need bearer tokens)
-- Ephemeral signing key if PAYGUARD_SIGNING_KEY env var not set
+- No API authentication or rate limiting; the demo binds to loopback by default and should remain in a trusted local environment.
+- Atomic budget guarantee is for one process and one SQLite database.
+- Signing key is ephemeral unless `PAYGUARD_SIGNING_KEY` is configured.
+- AI semantic checks are advisory and cannot authorize payments.
+- `.paytrace` checks hash and chain consistency; it is not signed by an external trust authority.
+- Security Lab scenarios use the simulator and do not prove PayPal Sandbox behavior.
