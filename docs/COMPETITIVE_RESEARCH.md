@@ -38,4 +38,4 @@ Do not imply that `.paytrace` proves who created the evidence or that a payment 
 
 ## Remaining Evidence Gap
 
-At this review, the workspace had no configured Sandbox credentials or OpenAI key. Thus the PayPal adapter and AI calls compile, but their end-to-end behavior remains unverified here. This gap is more important than adding another dashboard feature.
+At this review, the workspace had no configured Sandbox credentials or AI provider key. Thus the PayPal adapter and AI calls compile, but their end-to-end behavior remains unverified here. OpenRouter now offers a free-model path for AI testing, though its free models can be rate-limited or unavailable. This integration gap is more important than adding another dashboard feature.

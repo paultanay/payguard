@@ -82,7 +82,7 @@ Reservation  (validated transitions)
 
 Optional:
 - PayPal Sandbox credentials (from [developer.paypal.com](https://developer.paypal.com))
-- OpenAI API key for actual AI proposal generation and semantic checks (without it, the app labels and uses a deterministic fallback)
+- An [OpenRouter API key](https://openrouter.ai/keys) for free model testing, or an OpenAI API key for direct OpenAI access. Without either, the app labels and uses a deterministic fallback.
 
 ---
 
@@ -118,6 +118,15 @@ PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
 PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
 USE_SIMULATOR=false
 ```
+
+For free AI testing through OpenRouter, set these values in `.env`:
+```env
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+AI_MODEL=openrouter/free
+```
+
+OpenRouter's `openrouter/free` route chooses from currently available free models. You can instead set `AI_MODEL` to a specific model ID from [OpenRouter's free model catalog](https://openrouter.ai/collections/free-models), including compatible Google or NVIDIA models when listed there. Free models can be rate-limited or unavailable, and model/provider data handling varies; do not send secrets or sensitive payment information in prompts. If only `OPENROUTER_API_KEY` is configured, PayGuard selects OpenRouter automatically. To use OpenAI directly, set `AI_PROVIDER=openai`, `OPENAI_API_KEY`, and an OpenAI model in `AI_MODEL`.
 
 ---
 
@@ -300,7 +309,7 @@ MIT — see [LICENSE](./LICENSE)
 
 ## AI Tools
 
-- **In the product:** OpenAI API (default model: `gpt-4o-mini`, configurable with `AI_MODEL`) generates structured purchase proposals and performs an advisory semantic check. Zod validates model output. The deterministic policy engine—not the model—authorizes or denies spending. Without an API key, the UI labels and uses a deterministic fallback; that mode is not an AI demonstration.
+- **In the product:** OpenRouter or OpenAI generates structured purchase proposals and performs an advisory semantic check. Set `AI_PROVIDER` to `openrouter` or `openai` and choose a model with `AI_MODEL`; OpenRouter defaults to its free `openrouter/free` route when its API key is the only one configured. Zod validates model output. The deterministic policy engine—not the model—authorizes or denies spending. Without an API key, the UI labels and uses a deterministic fallback; that mode is not an AI demonstration.
 - **During development:** OpenAI Codex assisted with implementation and review. The entrant should disclose development assistance accurately in the submission and remain able to explain and verify the work.
 
 ---

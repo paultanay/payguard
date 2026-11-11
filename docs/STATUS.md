@@ -25,7 +25,7 @@
 ## Required before submitting
 
 1. Configure PayPal Sandbox client credentials and a sandbox business/buyer account. Complete one real buyer approval and capture from the dashboard.
-2. Configure an OpenAI API key and run a real proposal plus semantic check. Record which model/provider actually ran.
+2. Configure either an OpenRouter API key (free route: `AI_PROVIDER=openrouter`, `AI_MODEL=openrouter/free`) or an OpenAI API key, then run a real proposal plus semantic check. Record which model/provider actually ran.
 3. Verify an over-limit proposal is denied without a PayPal request.
 4. Verify the GitHub repository is public, contains all source and instructions, and displays the MIT license.
 5. Record an English video under 3 minutes showing the actual working flow, upload it publicly to YouTube, and add that link to Devpost.

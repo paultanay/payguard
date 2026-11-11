@@ -5,11 +5,11 @@
 
 ## Before recording
 
-- Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `OPENAI_API_KEY` in `.env`.
+- Set PayPal Sandbox credentials and either `OPENROUTER_API_KEY` or `OPENAI_API_KEY` in `.env`. For free OpenRouter testing, set `AI_PROVIDER=openrouter` and `AI_MODEL=openrouter/free`.
 - Create a PayPal Sandbox business account and buyer account.
 - Start the app from the repository root with `npm run dev` and confirm `/health` reports `sandbox`.
 - Create a policy with a $50 per-transaction limit, $200 daily budget, USD currency, and an allowed Sandbox merchant email.
-- Confirm the AI proposal panel labels its result **AI-Generated**.
+- Confirm the AI proposal panel labels its result **AI-Generated**, and note the configured provider/model for your disclosure.
 - Reset to a clean database before the final rehearsal; keep a second recording attempt ready.
 
 ## Timed story
@@ -50,4 +50,4 @@ Say: “PayGuard gives agents a path to propose purchases while keeping authoriz
 
 ## Offline backup
 
-If credentials or network are unavailable, use `USE_SIMULATOR=true` and record the simulator flow as a development backup only. The submitted video still needs to demonstrate meaningful PayPal and AI use to satisfy the published requirements.
+If PayPal Sandbox credentials or network are unavailable, use `USE_SIMULATOR=true` and record the simulator flow as a development backup only. OpenRouter free models can also be rate-limited or temporarily unavailable. The submitted video still needs to demonstrate meaningful PayPal and AI use to satisfy the published requirements.

@@ -40,13 +40,68 @@ export const SemanticCheckResultSchema = z.object({
 
 export type SemanticCheckResult = z.infer<typeof SemanticCheckResultSchema>;
 
+export type AIProvider = 'openai' | 'openrouter';
+
+export interface AIConfig {
+  provider: AIProvider;
+  apiKey?: string;
+  model: string;
+  baseURL?: string;
+}
+
+export function resolveAIConfig(env: NodeJS.ProcessEnv = process.env): AIConfig {
+  const configuredProvider = env.AI_PROVIDER?.trim().toLowerCase();
+  if (configuredProvider && configuredProvider !== 'openai' && configuredProvider !== 'openrouter') {
+    throw new Error(`Unsupported AI_PROVIDER "${configuredProvider}". Use "openai" or "openrouter".`);
+  }
+
+  const provider: AIProvider = configuredProvider === 'openai' || configuredProvider === 'openrouter'
+    ? configuredProvider
+    : env.OPENROUTER_API_KEY && !env.OPENAI_API_KEY
+      ? 'openrouter'
+      : 'openai';
+
+  return {
+    provider,
+    apiKey: provider === 'openrouter' ? env.OPENROUTER_API_KEY : env.OPENAI_API_KEY,
+    model: env.AI_MODEL?.trim() || (provider === 'openrouter' ? 'openrouter/free' : 'gpt-4o-mini'),
+    baseURL: provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : undefined,
+  };
+}
+
 export class AIAdapter {
   private hasApiKey: boolean;
+  private apiKey?: string;
+  private provider: AIProvider;
   private model: string;
+  private baseURL?: string;
 
-  constructor(options?: { apiKey?: string; model?: string }) {
-    this.hasApiKey = !!(options?.apiKey ?? process.env.OPENAI_API_KEY);
-    this.model = options?.model ?? process.env.AI_MODEL ?? 'gpt-4o-mini';
+  constructor(options?: {
+    provider?: AIProvider;
+    apiKey?: string;
+    model?: string;
+    baseURL?: string;
+  }) {
+    const config = resolveAIConfig();
+    this.provider = options?.provider ?? config.provider;
+    this.apiKey = options?.apiKey ?? (options?.provider ? undefined : config.apiKey);
+    this.hasApiKey = !!this.apiKey;
+    this.model = options?.model?.trim() || (options?.provider ? undefined : config.model) || (this.provider === 'openrouter' ? 'openrouter/free' : 'gpt-4o-mini');
+    this.baseURL = options?.baseURL ?? (this.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : config.baseURL);
+  }
+
+  private async createClient() {
+    const { default: OpenAI } = await import('openai');
+    return new OpenAI({
+      apiKey: this.apiKey,
+      ...(this.baseURL ? { baseURL: this.baseURL } : {}),
+      ...(this.provider === 'openrouter' ? {
+        defaultHeaders: {
+          'HTTP-Referer': 'https://github.com/paultanay/payguard',
+          'X-OpenRouter-Title': 'PayGuard',
+        },
+      } : {}),
+    });
   }
 
   /**
@@ -82,8 +137,7 @@ Currency policy: ${context?.policy_currency ?? 'USD'}
 Policy max amount: ${context?.policy_max_amount_minor ? context.policy_max_amount_minor + ' minor units' : 'not specified'}.
 This limit is informational only. Extract the user's requested amount faithfully; never lower or clamp it to fit a policy. The deterministic policy engine will decide whether the amount is allowed.`;
 
-      const { default: OpenAI } = await import('openai');
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const client = await this.createClient();
 
       const response = await client.chat.completions.create({
         model: this.model,
@@ -148,8 +202,7 @@ Respond with ONLY a JSON object (no markdown):
 Evaluate: same item category, reasonable amount, appropriate merchant.
 Be conservative — flag mismatches rather than silently passing suspicious proposals.`;
 
-      const { default: OpenAI } = await import('openai');
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const client = await this.createClient();
 
       const userContent = `Original request: "${originalRequest}"
 Proposed payment: ${proposedIntent.description} for ${proposedIntent.amount_minor} minor units of ${proposedIntent.currency} to payee ${proposedIntent.payee_id}`;
