@@ -53,7 +53,7 @@ export async function getKeyPair(): Promise<KeyPair> {
     // Generate a new key (ephemeral for dev; warn in production)
     privateKey = ed.utils.randomPrivateKey();
     if (process.env.NODE_ENV === 'production') {
-      console.warn('[PayGuard] WARNING: No PAYGUARD_SIGNING_KEY set. Using ephemeral key — signatures will not survive restart.');
+      console.warn('[PayGuard] WARNING: No PAYGUARD_SIGNING_KEY set. Using ephemeral key - signatures will not survive restart.');
     }
   }
 

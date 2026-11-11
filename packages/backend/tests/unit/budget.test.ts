@@ -5,7 +5,7 @@ import { BudgetService } from '../../src/budget/service.js';
 import { nanoid } from 'nanoid';
 import type Database from 'better-sqlite3';
 
-describe('BudgetService — atomic reservations', () => {
+describe('BudgetService - atomic reservations', () => {
   let db: Database.Database;
   let policyEngine: PolicyEngine;
   let budgetService: BudgetService;

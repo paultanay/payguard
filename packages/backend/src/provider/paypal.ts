@@ -54,7 +54,7 @@ export class PayPalAdapter implements PaymentProvider {
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
-      throw new Error(`PayPal auth failed: ${response.status} — ${body.slice(0, 200)}`);
+      throw new Error(`PayPal auth failed: ${response.status} - ${body.slice(0, 200)}`);
     }
 
     const data = await response.json() as { access_token: string; expires_in: number };
@@ -155,7 +155,7 @@ export class PayPalAdapter implements PaymentProvider {
       return {
         success: false,
         error_code: isTimeout ? 'PROVIDER_TIMEOUT' : 'NETWORK_ERROR',
-        error_message: isTimeout ? 'PayPal request timed out — outcome unknown' : message,
+        error_message: isTimeout ? 'PayPal request timed out - outcome unknown' : message,
       };
     }
   }
@@ -206,7 +206,7 @@ export class PayPalAdapter implements PaymentProvider {
       return {
         success: false,
         error_code: isTimeout ? 'PROVIDER_TIMEOUT' : 'NETWORK_ERROR',
-        error_message: isTimeout ? 'PayPal capture timed out — outcome unknown' : message,
+        error_message: isTimeout ? 'PayPal capture timed out - outcome unknown' : message,
       };
     }
   }

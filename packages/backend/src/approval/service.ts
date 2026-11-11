@@ -62,7 +62,7 @@ export class ApprovalService {
   }
 
   /**
-   * Approve — must match exact fields_hash to prevent authorization of modified transactions.
+   * Approve - must match exact fields_hash to prevent authorization of modified transactions.
    */
   approve(id: string, approvedBy: string, fieldsToVerify: {
     amount_minor: number;
@@ -82,7 +82,7 @@ export class ApprovalService {
     if (fieldsHash !== approval.fields_hash) {
       return {
         success: false,
-        reason: 'Approval fields mismatch — transaction details changed, reauthorization required',
+        reason: 'Approval fields mismatch - transaction details changed, reauthorization required',
       };
     }
 

@@ -1,5 +1,5 @@
 /**
- * Database schema DDL — single source of truth for table definitions.
+ * Database schema DDL - single source of truth for table definitions.
  * Uses SQLite with WAL mode for concurrency-safe reads.
  * Budget enforcement uses UPDATE…WHERE with BEGIN IMMEDIATE for atomic reservations.
  */

@@ -25,8 +25,8 @@ export default function Overview() {
 
   const p = stats?.active_policy;
   const cards = [
-    { label: 'Provider mode', value: stats?.provider_mode?.toUpperCase() ?? '—', color: 'var(--accent)' },
-    { label: 'Committed spend', value: fmt(stats?.committed_spend_minor ?? 0), sub: `of ${p ? fmt(p.budget_limit_minor) : '—'} limit`, color: 'var(--text)' },
+    { label: 'Provider mode', value: stats?.provider_mode?.toUpperCase() ?? '-', color: 'var(--accent)' },
+    { label: 'Committed spend', value: fmt(stats?.committed_spend_minor ?? 0), sub: `of ${p ? fmt(p.budget_limit_minor) : '-'} limit`, color: 'var(--text)' },
     { label: 'Remaining budget', value: fmt(stats?.remaining_budget_minor ?? 0), color: (stats?.remaining_budget_minor ?? 0) < 1000 ? 'var(--red)' : 'var(--green)' },
     { label: 'Outstanding reservations', value: fmt(stats?.outstanding_reservations_minor ?? 0), color: 'var(--yellow)' },
     { label: 'Pending approvals', value: stats?.pending_approvals ?? 0, color: 'var(--yellow)' },

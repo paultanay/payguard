@@ -1,7 +1,7 @@
 /**
  * Concurrency tests: multiple requests competing for the same budget.
  *
- * SQLite with BEGIN IMMEDIATE serializes writers — even when multiple
+ * SQLite with BEGIN IMMEDIATE serializes writers - even when multiple
  * async operations are initiated simultaneously the database ensures
  * atomicity. These tests verify the invariant holds in a single process.
  *
@@ -42,7 +42,7 @@ describe('Concurrent budget race conditions', () => {
       currency: 'USD',
     });
 
-    // Launch all reservations simultaneously (no real FK — intent IDs are arbitrary)
+    // Launch all reservations simultaneously (no real FK - intent IDs are arbitrary)
     const reservationPromises = Array.from({ length: NUM_CONCURRENT }, (_, i) =>
       Promise.resolve(budgetService.reserve(`intent_race_${i}`, policy.id, AMOUNT_EACH, 'USD'))
     );

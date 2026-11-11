@@ -77,14 +77,14 @@ export default function AgentActivity() {
           setActionMsg('Policy approved and budget reserved. Complete buyer approval in PayPal Sandbox, return here, then capture from Transactions.');
         } else if (exec.success && exec.transaction_id) {
           const cap = await api.captureTransaction(exec.transaction_id);
-          setActionMsg(`Payment ${cap.state} — Intent: ${result.intent.id}`);
+          setActionMsg(`Payment ${cap.state} - Intent: ${result.intent.id}`);
         } else {
-          setActionMsg(`Intent created — Decision: ${result.decision} — State: ${exec.state}`);
+          setActionMsg(`Intent created - Decision: ${result.decision} - State: ${exec.state}`);
         }
       } else if (result.decision === 'REQUIRE_APPROVAL') {
-        setActionMsg(`Approval required — Approval ID: ${result.approval_id}`);
+        setActionMsg(`Approval required - Approval ID: ${result.approval_id}`);
       } else {
-        setActionMsg(`DENIED — ${result.reason}`);
+        setActionMsg(`DENIED - ${result.reason}`);
       }
       load();
     } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
@@ -131,7 +131,7 @@ export default function AgentActivity() {
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }}
             >
               {policies.filter(p => p.status === 'active').map(p => (
-                <option key={p.id} value={p.id}>{p.name} — agent: {p.agent_id}</option>
+                <option key={p.id} value={p.id}>{p.name} - agent: {p.agent_id}</option>
               ))}
             </select>
           </label>
@@ -160,7 +160,7 @@ export default function AgentActivity() {
                 ['Amount', fmt(proposal.estimated_amount_minor, proposal.currency)],
                 ['Currency', proposal.currency],
                 ['Payee', proposal.suggested_payee_name || proposal.suggested_payee_id || 'General Merchant'],
-                ['Category', proposal.purchase_category || '—'],
+                ['Category', proposal.purchase_category || '-'],
                 ['Confidence', `${((proposal.confidence ?? 0) * 100).toFixed(0)}%`],
               ].map(([k, v]) => (
                 <div key={k as string}>
@@ -181,8 +181,8 @@ export default function AgentActivity() {
             <strong style={{ fontSize: 13 }}>Semantic intent check · {semanticCheck.ai_generated ? 'AI-assisted' : 'fallback'}</strong>
             <div style={{ fontSize: 12, marginTop: 4 }}>
               {semanticCheck.intent_matches ? 'Intent matches proposal' : `Mismatch: ${semanticCheck.mismatch_reason}`}
-              {semanticCheck.flag_for_review && ' — Flagged for review'}
-              {' — Confidence: '}{((semanticCheck.confidence ?? 0) * 100).toFixed(0)}%
+              {semanticCheck.flag_for_review && ' - Flagged for review'}
+              {' - Confidence: '}{((semanticCheck.confidence ?? 0) * 100).toFixed(0)}%
             </div>
           </div>
         )}

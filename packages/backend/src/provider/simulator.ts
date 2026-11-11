@@ -1,7 +1,7 @@
 /**
- * Deterministic Payment Simulator — for offline testing and demos.
+ * Deterministic Payment Simulator - for offline testing and demos.
  *
- * SIMULATED MODE — no real money moves, no network calls.
+ * SIMULATED MODE - no real money moves, no network calls.
  * All results are clearly labeled as simulated.
  * Never represents simulated results as real PayPal transactions.
  */
@@ -59,11 +59,11 @@ export class PaymentSimulator implements PaymentProvider {
     }
 
     if (this.behavior === 'timeout') {
-      // Simulate a timeout — return ambiguous result
+      // Simulate a timeout - return ambiguous result
       return {
         success: false,
         error_code: 'PROVIDER_TIMEOUT',
-        error_message: '[SIMULATED] Provider timed out — outcome unknown',
+        error_message: '[SIMULATED] Provider timed out - outcome unknown',
         raw_response: { simulated: true, timeout: true },
       };
     }

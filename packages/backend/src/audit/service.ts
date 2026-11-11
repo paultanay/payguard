@@ -1,5 +1,5 @@
 /**
- * Audit Service — structured tamper-evident event log.
+ * Audit Service - structured tamper-evident event log.
  *
  * Each event contains:
  *   - Monotonically increasing sequence number
@@ -232,7 +232,7 @@ export class AuditService {
       const expectedHash = sha256(hashInput);
 
       if (expectedHash !== e.event_hash) {
-        errors.push(`Event #${seqNum} (${e.event_type}): hash mismatch — event has been tampered with`);
+        errors.push(`Event #${seqNum} (${e.event_type}): hash mismatch - event has been tampered with`);
       }
 
       prevHash = e.event_hash as string;

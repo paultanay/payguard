@@ -52,7 +52,7 @@ describe('PolicyEngine', () => {
     expect(updated?.remaining_budget_minor).toBe(17000);
   });
 
-  describe('evaluate — DENY cases', () => {
+  describe('evaluate - DENY cases', () => {
     let policyId: string;
 
     beforeEach(() => {
@@ -134,7 +134,7 @@ describe('PolicyEngine', () => {
     });
   });
 
-  describe('evaluate — ALLOW cases', () => {
+  describe('evaluate - ALLOW cases', () => {
     it('allows valid request within policy', () => {
       const policy = engine.createPolicy({
         owner_id: 'u', agent_id: 'a', name: 'n',
@@ -148,7 +148,7 @@ describe('PolicyEngine', () => {
     });
   });
 
-  describe('evaluate — REQUIRE_APPROVAL', () => {
+  describe('evaluate - REQUIRE_APPROVAL', () => {
     it('returns REQUIRE_APPROVAL when policy requires it', () => {
       const policy = engine.createPolicy({
         owner_id: 'u', agent_id: 'a', name: 'n',

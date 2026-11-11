@@ -1,5 +1,5 @@
 /**
- * Policy Engine — deterministic, no LLM involvement.
+ * Policy Engine - deterministic, no LLM involvement.
  *
  * Returns one of: ALLOW | REQUIRE_APPROVAL | DENY
  * A DENY from this engine cannot be overridden by an LLM.
@@ -25,7 +25,7 @@ export interface PolicyEvaluationResult {
   policy_id: string;
   policy_version: number;
   reason: string;
-  /** Remaining budget BEFORE this transaction (informational only — reservation is atomic) */
+  /** Remaining budget BEFORE this transaction (informational only - reservation is atomic) */
   remaining_budget_minor: number;
   period_key: string;
 }
@@ -100,7 +100,7 @@ export class PolicyEngine {
 
   /**
    * Evaluate a payment request against the policy.
-   * This is a READ-ONLY operation — it does NOT reserve budget.
+   * This is a READ-ONLY operation - it does NOT reserve budget.
    * Budget reservation is handled atomically by BudgetService.
    */
   evaluate(req: PolicyEvaluationRequest): PolicyEvaluationResult {

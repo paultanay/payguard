@@ -1,5 +1,5 @@
 /**
- * Intent Service — orchestrates the full payment proposal lifecycle.
+ * Intent Service - orchestrates the full payment proposal lifecycle.
  *
  * Flow:
  *  1. Create signed intent
@@ -119,7 +119,7 @@ export class IntentService {
         if (existingIntent) {
           const policy = this.policyEngine.getPolicyById(existingIntent.policy_id);
           const intent = rowToSignedIntent(existingIntent, policy?.version ?? 1);
-          return { intent, decision: 'IDEMPOTENT', reason: 'Duplicate request — returning existing intent', idempotent: true };
+          return { intent, decision: 'IDEMPOTENT', reason: 'Duplicate request - returning existing intent', idempotent: true };
         }
       }
     }
@@ -334,16 +334,16 @@ export class IntentService {
 
     if (!createResult.success) {
       if (createResult.error_code === 'PROVIDER_TIMEOUT') {
-        // Ambiguous outcome — do NOT release budget, enter reconciliation
+        // Ambiguous outcome - do NOT release budget, enter reconciliation
         this.updateIntentState(intent.id, 'RECONCILIATION_REQUIRED', new Date().toISOString());
         this.updateTransaction(txnId, { state: 'RECONCILIATION_REQUIRED', error_code: createResult.error_code });
         this.auditService.record('RECONCILIATION_REQUIRED', intent.id, 'intent', {
-          reason: 'Provider timeout — outcome unknown, reservation held',
+          reason: 'Provider timeout - outcome unknown, reservation held',
         }, 'gateway');
         return { success: false, state: 'RECONCILIATION_REQUIRED', error: createResult.error_message, provider_mode: this.provider.mode };
       }
 
-      // Definitive failure — release reservation
+      // Definitive failure - release reservation
       this.budgetService.release(reserveResult.reservation!.id);
       this.updateIntentState(intent.id, 'FAILED', new Date().toISOString());
       this.updateTransaction(txnId, { state: 'FAILED', error_code: createResult.error_code });

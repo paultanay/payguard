@@ -61,7 +61,7 @@ npm ci
 cp -n .env.example .env
 ```
 
-Edit `.env`. The minimum required for offline/simulated mode — **no credentials needed**:
+Edit `.env`. The minimum required for offline/simulated mode - **no credentials needed**:
 
 ```env
 USE_SIMULATOR=true
@@ -91,7 +91,7 @@ OpenRouter's `openrouter/free` route chooses from currently available free model
 
 ### Development (two terminals)
 
-**Terminal 1 — Backend API:**
+**Terminal 1 - Backend API:**
 ```bash
 cd packages/backend
 USE_SIMULATOR=true npx tsx src/server.ts
@@ -99,7 +99,7 @@ USE_SIMULATOR=true npx tsx src/server.ts
 # → Health: http://localhost:3001/health
 ```
 
-**Terminal 2 — Frontend Dashboard:**
+**Terminal 2 - Frontend Dashboard:**
 ```bash
 cd packages/frontend
 npx vite --port 5173
@@ -138,11 +138,11 @@ The suite covers cryptographic signing, policy decisions, budget reservations, p
 The MCP server exposes 5 tools over stdio using the official `@modelcontextprotocol/server` v2 SDK.
 
 **Tools:**
-- `create_payment_proposal` — create and policy-evaluate a signed intent
-- `evaluate_payment_policy` — dry-run policy check without reserving budget
-- `get_payment_status` — get intent + transaction state
-- `request_payment_approval` — surface approval requirement to human
-- `get_audit_evidence` — retrieve audit trail + chain integrity
+- `create_payment_proposal` - create and policy-evaluate a signed intent
+- `evaluate_payment_policy` - dry-run policy check without reserving budget
+- `get_payment_status` - get intent + transaction state
+- `request_payment_approval` - surface approval requirement to human
+- `get_audit_evidence` - retrieve audit trail + chain integrity
 
 **Configure in your MCP client** (e.g. Claude Desktop `mcp_settings.json`):
 Build first with `npm run build`, then point the client at the compiled entry point:
@@ -215,7 +215,7 @@ To reset all data and start fresh:
 ```bash
 # Stop the server, then:
 rm -f data/payguard.db
-# Restart the server — schema is recreated automatically
+# Restart the server - schema is recreated automatically
 ```
 
 ---
@@ -255,4 +255,4 @@ rm -f data/payguard.db
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT - see [LICENSE](./LICENSE)

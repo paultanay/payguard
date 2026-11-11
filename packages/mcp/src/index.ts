@@ -76,7 +76,7 @@ serveStdio(() => {
     {
       description: `Create a structured payment proposal and evaluate it against the active policy.
 Returns the signed intent ID, policy decision (ALLOW/REQUIRE_APPROVAL/DENY), and reason.
-The AI agent must not execute payments — only create proposals for human review.`,
+The AI agent must not execute payments - only create proposals for human review.`,
       inputSchema: {
         policy_id: z.string().describe('ID of the policy to evaluate against'),
         agent_id: z.string().describe('ID of the requesting agent'),
@@ -225,7 +225,7 @@ Use this to check if a payment would be allowed before committing to it.`,
     {
       description: `Request human approval for a payment that requires it.
 Returns the approval ID and a message instructing the human to approve via the dashboard.
-This tool does NOT execute the payment — it only signals that approval is needed.`,
+This tool does NOT execute the payment - it only signals that approval is needed.`,
       inputSchema: {
         intent_id: z.string().describe('The intent ID that needs approval'),
       },
@@ -246,7 +246,7 @@ This tool does NOT execute the payment — it only signals that approval is need
             text: JSON.stringify({
               intent_id: args.intent_id,
               state: intent.state,
-              message: `Intent is in state ${intent.state} — approval not required or already processed`,
+              message: `Intent is in state ${intent.state} - approval not required or already processed`,
             }),
           }],
         };

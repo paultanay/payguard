@@ -1,5 +1,5 @@
 /**
- * AI Adapter — generates structured payment proposals and semantic checks.
+ * AI Adapter - generates structured payment proposals and semantic checks.
  *
  * AI output is ALWAYS validated against a strict Zod schema before use.
  * The AI cannot:
@@ -171,7 +171,7 @@ This limit is informational only. Extract the user's requested amount faithfully
    * but does NOT automatically authorize a transaction. The deterministic policy
    * engine is the final security gate.
    *
-   * This check cannot prevent all prompt injection — it is one layer, not the boundary.
+   * This check cannot prevent all prompt injection - it is one layer, not the boundary.
    */
   async semanticIntentCheck(
     originalRequest: string,
@@ -204,7 +204,7 @@ Respond with ONLY a JSON object (no markdown):
 }
 
 Evaluate: same item category, reasonable amount, appropriate merchant.
-Be conservative — flag mismatches rather than silently passing suspicious proposals.`;
+Be conservative - flag mismatches rather than silently passing suspicious proposals.`;
 
       const client = await this.createClient();
 
@@ -235,7 +235,7 @@ Proposed payment: ${proposedIntent.description} for ${proposedIntent.amount_mino
         intent_matches: true,
         confidence: 0,
         flag_for_review: true,
-        mismatch_reason: 'AI check unavailable — manual review recommended',
+        mismatch_reason: 'AI check unavailable - manual review recommended',
         ai_generated: false,
       };
     }

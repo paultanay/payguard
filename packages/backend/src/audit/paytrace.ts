@@ -1,5 +1,5 @@
 /**
- * PayTrace — Portable Audit Evidence Bundle (.paytrace)
+ * PayTrace - Portable Audit Evidence Bundle (.paytrace)
  *
  * A project-specific file format for exporting and verifying
  * payment audit evidence offline.
@@ -170,13 +170,13 @@ export class PayTraceExporter {
       const expectedHash = sha256(hashInput);
 
       if (expectedHash !== e.event_hash) {
-        errors.push(`Event #${e.sequence_num} (${e.event_type}): hash mismatch — tampered`);
+        errors.push(`Event #${e.sequence_num} (${e.event_type}): hash mismatch - tampered`);
         integrityErrors++;
       }
 
       // Check chain linkage
       if (e.prev_hash !== prevHash) {
-        errors.push(`Event #${e.sequence_num}: chain break — prev_hash mismatch`);
+        errors.push(`Event #${e.sequence_num}: chain break - prev_hash mismatch`);
         chainErrors++;
       }
 
@@ -189,7 +189,7 @@ export class PayTraceExporter {
     } as unknown as Record<string, unknown>));
     const integrity = b.integrity as PayTraceIntegrity;
     if (integrity?.export_hash && exportHash !== integrity.export_hash) {
-      errors.push('Export hash mismatch — bundle export_hash invalid');
+      errors.push('Export hash mismatch - bundle export_hash invalid');
       integrityErrors++;
     }
 

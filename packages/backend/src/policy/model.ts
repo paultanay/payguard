@@ -28,7 +28,7 @@ export const PolicySchema = z.object({
   budget_period: BudgetPeriodSchema,
   /** Total spend budget for the period */
   budget_limit_minor: z.number().int().positive(),
-  /** Remaining budget for the current period — updated atomically */
+  /** Remaining budget for the current period - updated atomically */
   remaining_budget_minor: z.number().int().min(0),
   budget_period_key: z.string(),
   require_approval: z.boolean(),

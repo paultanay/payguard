@@ -1,5 +1,5 @@
 /**
- * Security Lab — runs actual application logic, not scripted animations.
+ * Security Lab - runs actual application logic, not scripted animations.
  * Each scenario calls real policy/transaction code.
  * Provider invocation status is reported honestly.
  */
@@ -112,7 +112,7 @@ export async function runLabScenario(
         scenario, description: 'Amount exceeds per-transaction limit',
         policy_summary: `Max: $50/txn`,
         input_summary: '$75.00 purchase (over $50 limit)',
-        expected_result: 'DENY — amount exceeds per-transaction limit',
+        expected_result: 'DENY - amount exceeds per-transaction limit',
         actual_result: `${decision}: ${reason}`,
         provider_invoked: false,
         provider_mode: simulator.mode,
@@ -154,15 +154,15 @@ export async function runLabScenario(
       const { intent: i2, decision: d2, reason: r2 } = await intentService.createIntent({
         policy_id: burnPolicy.id, agent_id: burnPolicy.agent_id,
         amount_minor: 500, currency: 'USD', payee_id: 'merchant_demo',
-        description: 'Second purchase — should be denied',
+        description: 'Second purchase - should be denied',
         idempotency_key: `lab_exhaust2_${nanoid(8)}`,
       });
 
       return {
-        scenario, description: 'Aggregate budget exhausted — second payment denied',
+        scenario, description: 'Aggregate budget exhausted - second payment denied',
         policy_summary: '$80 daily budget',
         input_summary: '$79 + $5 = $84 attempted (over $80 budget)',
-        expected_result: 'Second payment DENY — budget exhausted',
+        expected_result: 'Second payment DENY - budget exhausted',
         actual_result: `${d2}: ${r2}`,
         provider_invoked: providerInvoked,
         provider_mode: simulator.mode,
@@ -194,10 +194,10 @@ export async function runLabScenario(
       });
 
       return {
-        scenario, description: 'Unauthorized payee — merchant not in allowed list',
+        scenario, description: 'Unauthorized payee - merchant not in allowed list',
         policy_summary: 'Only allows payee: approved_merchant_only',
         input_summary: 'Purchase from unauthorized_merchant',
-        expected_result: 'DENY — payee not authorized',
+        expected_result: 'DENY - payee not authorized',
         actual_result: `${decision}: ${reason}`,
         provider_invoked: false,
         provider_mode: simulator.mode,
@@ -227,7 +227,7 @@ export async function runLabScenario(
         scenario, description: 'Expired intent rejected before payment execution',
         policy_summary: 'Standard policy',
         input_summary: 'Intent with 0-second TTL',
-        expected_result: 'EXPIRED — intent rejected before provider call',
+        expected_result: 'EXPIRED - intent rejected before provider call',
         actual_result: execResult.state,
         provider_invoked: execResult.state !== 'EXPIRED',
         provider_mode: simulator.mode,
@@ -253,11 +253,11 @@ export async function runLabScenario(
         if (r.success) { firstResult = await intentService.capturePayment(r.transaction_id!); }
       }
 
-      // Attempt replay — execute the same intent again
+      // Attempt replay - execute the same intent again
       const replayResult = await intentService.executePayment({ intent_id: intent.id });
 
       return {
-        scenario, description: 'Replay attack — attempting to re-execute a succeeded intent',
+        scenario, description: 'Replay attack - attempting to re-execute a succeeded intent',
         policy_summary: 'Standard policy',
         input_summary: 'Same intent executed twice',
         expected_result: 'First: SUCCEEDED; Second: REPLAY rejected',
@@ -281,14 +281,14 @@ export async function runLabScenario(
       // Tamper with the amount in the database
       db.prepare('UPDATE payment_intents SET amount_minor = 9999999 WHERE id = ?').run(intent.id);
 
-      // Try to execute — signature verification should fail
+      // Try to execute - signature verification should fail
       const execResult = await intentService.executePayment({ intent_id: intent.id });
 
       return {
-        scenario, description: 'Tampered payload — amount modified in database',
+        scenario, description: 'Tampered payload - amount modified in database',
         policy_summary: 'Standard policy',
         input_summary: 'Intent signed for $5.00, amount tampered to $99,999.99',
-        expected_result: 'FAILED — signature verification detects tampering',
+        expected_result: 'FAILED - signature verification detects tampering',
         actual_result: execResult.state + (execResult.error ? `: ${execResult.error}` : ''),
         provider_invoked: false,
         provider_mode: simulator.mode,
@@ -343,7 +343,7 @@ export async function runLabScenario(
       const failed = results.length - succeeded;
 
       return {
-        scenario, description: 'Budget race — 3×$40 against $100 budget (only 2 should succeed)',
+        scenario, description: 'Budget race - 3×$40 against $100 budget (only 2 should succeed)',
         policy_summary: '$100 daily budget, $60 max per transaction',
         input_summary: '3 simultaneous $40 payment attempts',
         expected_result: 'At most 2 succeed, at least 1 denied (budget constraint)',
@@ -358,7 +358,7 @@ export async function runLabScenario(
 
     case 'malicious_ai_output': {
       // Simulate AI trying to override policy denial
-      // The AI output is validated with Zod — malformed output is rejected
+      // The AI output is validated with Zod - malformed output is rejected
       const invalidProposal = '{"item_name": "exploit", "budget_override": 999999, "estimated_amount_minor": -1}';
 
       let parseError = null;
@@ -370,7 +370,7 @@ export async function runLabScenario(
       }
 
       return {
-        scenario, description: 'Malicious AI output — attempting budget override and negative amount',
+        scenario, description: 'Malicious AI output - attempting budget override and negative amount',
         policy_summary: 'Standard policy',
         input_summary: 'AI output with budget_override field and negative amount',
         expected_result: 'Schema validation rejects malformed AI output',
@@ -400,10 +400,10 @@ export async function runLabScenario(
       simulator.setBehavior('succeed'); // reset
 
       return {
-        scenario, description: 'Provider timeout — outcome unknown, reservation preserved',
+        scenario, description: 'Provider timeout - outcome unknown, reservation preserved',
         policy_summary: 'Standard policy',
-        input_summary: '$10.00 purchase — provider times out',
-        expected_result: 'RECONCILIATION_REQUIRED — budget NOT released, manual check needed',
+        input_summary: '$10.00 purchase - provider times out',
+        expected_result: 'RECONCILIATION_REQUIRED - budget NOT released, manual check needed',
         actual_result: execResult?.state ?? 'not_executed',
         provider_invoked: providerInvoked,
         provider_mode: simulator.mode,
@@ -431,7 +431,7 @@ export async function runLabScenario(
       const verification = auditService.verify();
 
       return {
-        scenario, description: 'Tampered audit record — modifying event metadata',
+        scenario, description: 'Tampered audit record - modifying event metadata',
         policy_summary: 'N/A',
         input_summary: 'Audit event amount changed from $10 to $9,999.99',
         expected_result: 'Audit chain verification detects tampering',
@@ -465,7 +465,7 @@ export async function runLabScenario(
 
       const allRejected = results.every((r) => r === 'rejected');
       return {
-        scenario, description: 'Malformed AI output — various invalid schemas',
+        scenario, description: 'Malformed AI output - various invalid schemas',
         policy_summary: 'N/A',
         input_summary: '5 malformed AI output formats',
         expected_result: 'All 5 rejected by schema validation',

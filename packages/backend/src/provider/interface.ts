@@ -1,5 +1,5 @@
 /**
- * Payment Provider Interface — common contract for PayPal and Simulator adapters.
+ * Payment Provider Interface - common contract for PayPal and Simulator adapters.
  * The provider is replaceable; all authorization logic lives in the backend.
  */
 

@@ -12,7 +12,7 @@
  *     AND status = 'active'
  *
  * Inside a BEGIN IMMEDIATE transaction (writer lock).
- * If the UPDATE changes 0 rows, the budget was insufficient — reservation FAILS.
+ * If the UPDATE changes 0 rows, the budget was insufficient - reservation FAILS.
  * The provider is NEVER called if reservation fails.
  *
  * Limitation: This guarantee holds within a single SQLite file / single process.

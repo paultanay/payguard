@@ -50,7 +50,7 @@ export default function Transactions() {
             <Badge key="s" label={t.state} color={stateColor(t.state)} />,
             <span key="a">{fmt(t.amount_minor, t.currency)}</span>,
             <span key="p" style={{ fontSize: 12 }}>{t.payee_id}</span>,
-            <span key="pr" style={{ fontSize: 11, color: 'var(--muted)' }}>{t.provider_id || '—'}</span>,
+            <span key="pr" style={{ fontSize: 11, color: 'var(--muted)' }}>{t.provider_id || '-'}</span>,
             <ModeTag key="m" mode={t.provider_mode} />,
             <span key="i" style={{ fontSize: 11, color: 'var(--small)' }}>{t.intent_id?.slice(0, 16)}…</span>,
             <span key="c" style={{ fontSize: 11, color: 'var(--small)' }}>{new Date(t.created_at).toLocaleString()}</span>,

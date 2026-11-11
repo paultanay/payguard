@@ -25,7 +25,7 @@ export interface IntentCanonicalFields {
   policy_version: number;
   agent_id: string;
   operation: string;
-  /** Integer minor units — never floating point */
+  /** Integer minor units - never floating point */
   amount_minor: number;
   currency: string;
   payee_id: string;
@@ -40,7 +40,7 @@ export const CreateIntentInputSchema = z.object({
   policy_id: z.string().min(1),
   agent_id: z.string().min(1),
   operation: z.string().default('purchase'),
-  /** In minor units — e.g., USD cents */
+  /** In minor units - e.g., USD cents */
   amount_minor: z.number().int().positive(),
   currency: z.string().length(3),
   payee_id: z.string().min(1),
@@ -161,7 +161,7 @@ export async function verifyIntentSignature(
   const expectedHash = sha256(canonicalStr);
 
   if (expectedHash !== intent.canonical_hash) {
-    return { valid: false, reason: 'Canonical hash mismatch — fields have been tampered with' };
+    return { valid: false, reason: 'Canonical hash mismatch - fields have been tampered with' };
   }
 
   const messageBytes = new TextEncoder().encode(canonicalStr);
