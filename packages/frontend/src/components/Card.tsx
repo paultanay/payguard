@@ -4,7 +4,7 @@ export function Card({ children, style }: { children: ReactNode; style?: CSSProp
   return (
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 10, padding: 20, ...style,
+      borderRadius: 9, padding: 20, boxShadow: 'var(--shadow)', ...style,
     }}>
       {children}
     </div>
@@ -31,8 +31,8 @@ export function Badge({ label, color }: { label: string; color: 'green' | 'red' 
 export function StatCard({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
   return (
     <Card>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: color ?? 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 11, fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 27, fontWeight: 700, color: color ?? 'var(--text)', letterSpacing: -0.7 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: 'var(--small)', marginTop: 4 }}>{sub}</div>}
     </Card>
   );
@@ -113,13 +113,13 @@ export function ErrorBox({ msg }: { msg: string }) {
 
 export function ModeTag({ mode }: { mode: string }) {
   return (
-    <span style={{
+    <span className={`mode-tag ${mode === 'simulated' ? 'simulated' : 'sandbox'}`} style={{
       background: mode === 'simulated' ? '#f59e0b22' : '#22c55e22',
       color: mode === 'simulated' ? 'var(--yellow)' : 'var(--green)',
       padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700,
       textTransform: 'uppercase' as const, letterSpacing: 0.5,
     }}>
-      {mode === 'simulated' ? '⚠ SIMULATED' : '✓ SANDBOX'}
+      <span className="mode-dot" />{mode === 'simulated' ? 'SIMULATED' : 'PAYPAL SANDBOX'}
     </span>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, fmt, stateColor } from '../components/Card.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 export default function AgentActivity() {
   const [policies, setPolicies] = useState<Awaited<ReturnType<typeof api.listPolicies>>['policies']>([]);
@@ -10,6 +11,7 @@ export default function AgentActivity() {
   const [error, setError] = useState('');
   const [aiRequest, setAiRequest] = useState('');
   const [selectedPolicy, setSelectedPolicy] = useState('');
+  const [selectedPayee, setSelectedPayee] = useState('');
   const [proposal, setProposal] = useState<Awaited<ReturnType<typeof api.generateProposal>>['proposal'] | null>(null);
   const [proposalLoading, setProposalLoading] = useState(false);
   const [semanticCheck, setSemanticCheck] = useState<Awaited<ReturnType<typeof api.semanticCheck>>['result'] | null>(null);
@@ -48,13 +50,18 @@ export default function AgentActivity() {
     setActionMsg('');
     const policy = policies.find(p => p.id === selectedPolicy);
     if (!policy) return;
+    const payeeId = selectedPayee || (policy.allowed_payees.length === 1 ? policy.allowed_payees[0] : proposal.suggested_payee_id) || '';
+    if (!payeeId) {
+      setActionMsg('Enter a payee ID allowed by the selected policy.');
+      return;
+    }
     try {
       const result = await api.createIntent({
         policy_id: selectedPolicy,
         agent_id: policy.agent_id,
         amount_minor: proposal.estimated_amount_minor,
         currency: proposal.currency,
-        payee_id: proposal.suggested_payee_id || 'general_merchant',
+        payee_id: payeeId,
         payee_name: proposal.suggested_payee_name,
         description: proposal.description,
       });
@@ -70,21 +77,21 @@ export default function AgentActivity() {
           setActionMsg('Policy approved and budget reserved. Complete buyer approval in PayPal Sandbox, return here, then capture from Transactions.');
         } else if (exec.success && exec.transaction_id) {
           const cap = await api.captureTransaction(exec.transaction_id);
-          setActionMsg(`✅ Payment ${cap.state} — Intent: ${result.intent.id}`);
+          setActionMsg(`Payment ${cap.state} — Intent: ${result.intent.id}`);
         } else {
           setActionMsg(`Intent created — Decision: ${result.decision} — State: ${exec.state}`);
         }
       } else if (result.decision === 'REQUIRE_APPROVAL') {
-        setActionMsg(`⏳ Approval required — Approval ID: ${result.approval_id}`);
+        setActionMsg(`Approval required — Approval ID: ${result.approval_id}`);
       } else {
-        setActionMsg(`🚫 DENIED — ${result.reason}`);
+        setActionMsg(`DENIED — ${result.reason}`);
       }
       load();
     } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   async function approveApproval(id: string) {
-    try { await api.approveApproval(id); load(); setActionMsg('✅ Approved'); } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
+    try { await api.approveApproval(id); load(); setActionMsg('Approved'); } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   async function rejectApproval(id: string) {
@@ -100,7 +107,7 @@ export default function AgentActivity() {
 
       {/* AI Proposal Generator */}
       <Card style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>🤖 AI Purchase Proposal Generator</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700, marginBottom: 16 }}><Icon name="spark" size={17} />AI Purchase Proposal</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Natural Language Request</span>
@@ -116,13 +123,26 @@ export default function AgentActivity() {
             <span style={{ fontSize: 12, color: 'var(--muted)' }}>Policy</span>
             <select
               value={selectedPolicy}
-              onChange={e => setSelectedPolicy(e.target.value)}
+              onChange={e => {
+                const policyId = e.target.value;
+                setSelectedPolicy(policyId);
+                setSelectedPayee(policies.find(policy => policy.id === policyId)?.allowed_payees[0] ?? '');
+              }}
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }}
             >
               {policies.filter(p => p.status === 'active').map(p => (
                 <option key={p.id} value={p.id}>{p.name} — agent: {p.agent_id}</option>
               ))}
             </select>
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--muted)' }}>Payee ID</span>
+            <input
+              value={selectedPayee || policies.find(policy => policy.id === selectedPolicy)?.allowed_payees[0] || proposal?.suggested_payee_id || ''}
+              onChange={e => setSelectedPayee(e.target.value)}
+              placeholder="Sandbox merchant email or ID"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }}
+            />
           </label>
           <Btn onClick={generateProposal} disabled={proposalLoading || !aiRequest.trim()}>
             {proposalLoading ? 'Generating…' : 'Generate Proposal'}
@@ -132,7 +152,7 @@ export default function AgentActivity() {
         {proposal && (
           <div style={{ marginTop: 20, padding: 16, background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
-              Proposal {proposal.ai_generated ? '🤖 AI-Generated' : '⚙ Deterministic Fallback'}
+              Proposal · {proposal.ai_generated ? 'AI-generated' : 'Deterministic fallback'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {[
@@ -151,16 +171,16 @@ export default function AgentActivity() {
             </div>
             {proposal.rationale && <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 10 }}>{proposal.rationale}</p>}
             <Btn onClick={createIntentFromProposal} style={{ marginTop: 12 }}>
-              ▶ Create Intent &amp; Execute
+              Create intent &amp; execute
             </Btn>
           </div>
         )}
 
         {semanticCheck && (
           <div style={{ marginTop: 12, padding: 12, background: semanticCheck.intent_matches ? '#22c55e15' : '#ef444415', borderRadius: 6, border: `1px solid ${semanticCheck.intent_matches ? 'var(--green)' : 'var(--red)'}` }}>
-            <strong style={{ fontSize: 13 }}>Semantic Intent Check {semanticCheck.ai_generated ? '🤖' : '⚙'}</strong>
+            <strong style={{ fontSize: 13 }}>Semantic intent check · {semanticCheck.ai_generated ? 'AI-assisted' : 'fallback'}</strong>
             <div style={{ fontSize: 12, marginTop: 4 }}>
-              {semanticCheck.intent_matches ? '✅ Intent matches proposal' : `⚠ Mismatch: ${semanticCheck.mismatch_reason}`}
+              {semanticCheck.intent_matches ? 'Intent matches proposal' : `Mismatch: ${semanticCheck.mismatch_reason}`}
               {semanticCheck.flag_for_review && ' — Flagged for review'}
               {' — Confidence: '}{((semanticCheck.confidence ?? 0) * 100).toFixed(0)}%
             </div>
@@ -178,7 +198,7 @@ export default function AgentActivity() {
       {/* Pending Approvals */}
       {approvals.length > 0 && (
         <Card style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>⏳ Pending Approvals ({approvals.length})</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Pending approvals ({approvals.length})</div>
           {approvals.map(a => (
             <div key={a.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -186,8 +206,8 @@ export default function AgentActivity() {
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>Intent: {a.intent_id} · Expires: {new Date(a.expires_at).toLocaleString()}</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn onClick={() => approveApproval(a.id)}>✓ Approve</Btn>
-                <Btn variant="danger" onClick={() => rejectApproval(a.id)}>✗ Reject</Btn>
+                <Btn onClick={() => approveApproval(a.id)}>Approve</Btn>
+                <Btn variant="danger" onClick={() => rejectApproval(a.id)}>Reject</Btn>
               </div>
             </div>
           ))}

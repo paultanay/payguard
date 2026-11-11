@@ -24,39 +24,39 @@ export default function Overview() {
   if (error) return <ErrorBox msg={error} />;
 
   const p = stats?.active_policy;
+  const cards = [
+    { label: 'Provider mode', value: stats?.provider_mode?.toUpperCase() ?? '—', color: 'var(--accent)' },
+    { label: 'Committed spend', value: fmt(stats?.committed_spend_minor ?? 0), sub: `of ${p ? fmt(p.budget_limit_minor) : '—'} limit`, color: 'var(--text)' },
+    { label: 'Remaining budget', value: fmt(stats?.remaining_budget_minor ?? 0), color: (stats?.remaining_budget_minor ?? 0) < 1000 ? 'var(--red)' : 'var(--green)' },
+    { label: 'Outstanding reservations', value: fmt(stats?.outstanding_reservations_minor ?? 0), color: 'var(--yellow)' },
+    { label: 'Pending approvals', value: stats?.pending_approvals ?? 0, color: 'var(--yellow)' },
+    { label: 'Transactions', value: stats?.transaction_stats?.total ?? 0 },
+  ];
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700 }}>Overview</h2>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">PAYMENT OPERATIONS</div>
+          <h2>Overview</h2>
+          <p>Monitor spending controls, payment activity, and audit events.</p>
+        </div>
         <ModeTag mode={stats?.provider_mode ?? 'simulated'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
-        <StatCard label="Provider Mode" value={stats?.provider_mode?.toUpperCase() ?? '—'} color="var(--accent)" />
-        <StatCard
-          label="Committed Spend"
-          value={fmt(stats?.committed_spend_minor ?? 0)}
-          sub={`of ${p ? fmt(p.budget_limit_minor) : '—'} limit`}
-          color="var(--text)"
-        />
-        <StatCard
-          label="Remaining Budget"
-          value={fmt(stats?.remaining_budget_minor ?? 0)}
-          color={(stats?.remaining_budget_minor ?? 0) < 1000 ? 'var(--red)' : 'var(--green)'}
-        />
-        <StatCard
-          label="Outstanding Reservations"
-          value={fmt(stats?.outstanding_reservations_minor ?? 0)}
-          color="var(--yellow)"
-        />
-        <StatCard label="Pending Approvals" value={stats?.pending_approvals ?? 0} color="var(--yellow)" />
-        <StatCard label="Transactions" value={stats?.transaction_stats?.total ?? 0} />
+      <div className="stats-grid">
+        {cards.map(card => <StatCard key={card.label} {...card} />)}
       </div>
 
       {p && (
-        <Card style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--accent)' }}>Active Policy</div>
+        <Card style={{ marginBottom: 22 }}>
+          <div className="card-heading">
+            <div>
+              <h3>Active policy</h3>
+              <p>Current limits applied to new purchase intents.</p>
+            </div>
+            <Badge label={p.status} color={stateColor(p.status === 'active' ? 'ALLOW' : 'DENY')} />
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
             {[
               ['Name', p.name],
@@ -78,7 +78,13 @@ export default function Overview() {
       )}
 
       <Card>
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Recent Audit Events</div>
+        <div className="card-heading">
+          <div>
+            <h3>Recent audit events</h3>
+            <p>Latest recorded policy and payment activity.</p>
+          </div>
+          <span className="record-count">{(stats?.recent_audit_events ?? []).length} records</span>
+        </div>
         {(stats?.recent_audit_events ?? []).length === 0 ? (
           <p style={{ color: 'var(--muted)' }}>No events yet.</p>
         ) : (

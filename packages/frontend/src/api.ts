@@ -89,8 +89,8 @@ export const api = {
   getIntent: (id: string) => req<{ intent: IntentRow }>('GET', `/intents/${id}`),
   executeIntent: (id: string) => {
     const frontendUrl = window.location.origin;
-    const returnUrl = new URL(`/transactions?payment=returned&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
-    const cancelUrl = new URL(`/transactions?payment=cancelled&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
+    const returnUrl = new URL(`/#/transactions?payment=returned&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
+    const cancelUrl = new URL(`/#/transactions?payment=cancelled&intent_id=${encodeURIComponent(id)}`, frontendUrl).toString();
     return req<ExecutePaymentResult>('POST', `/intents/${id}/execute`, { return_url: returnUrl, cancel_url: cancelUrl });
   },
 

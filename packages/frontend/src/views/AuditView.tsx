@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, stateColor } from '../components/Card.tsx';
+import { Icon } from '../components/Icon.tsx';
 
 export default function AuditView() {
   const [events, setEvents] = useState<Awaited<ReturnType<typeof api.getAuditEvents>>['events']>([]);
@@ -43,7 +44,7 @@ export default function AuditView() {
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
         <Btn onClick={verify} disabled={verifying}>
-          {verifying ? 'Verifying…' : '🔍 Verify Chain Integrity'}
+          {verifying ? 'Verifying…' : <><Icon name="search" size={15} /> Verify chain integrity</>}
         </Btn>
         <input
           value={filter}
@@ -56,7 +57,9 @@ export default function AuditView() {
       {verification && (
         <Card style={{ marginBottom: 24, border: `1px solid ${verification.valid ? 'var(--green)' : 'var(--red)'}` }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 18 }}>{verification.valid ? '✅' : '❌'}</span>
+            <span style={{ display: 'grid', width: 26, height: 26, placeItems: 'center', borderRadius: '50%', background: verification.valid ? '#eaf6f0' : '#fbebec', color: verification.valid ? 'var(--green)' : 'var(--red)' }}>
+              <Icon name={verification.valid ? 'check' : 'shield'} size={15} />
+            </span>
             <strong style={{ color: verification.valid ? 'var(--green)' : 'var(--red)' }}>
               {verification.valid ? 'Chain integrity verified' : 'Chain integrity FAILED'}
             </strong>

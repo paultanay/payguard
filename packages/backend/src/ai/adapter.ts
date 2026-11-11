@@ -14,6 +14,7 @@
  */
 
 import { z } from 'zod';
+import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
 
 export const PurchaseProposalSchema = z.object({
   item_name: z.string().min(1).max(200),
@@ -145,9 +146,12 @@ This limit is informational only. Extract the user's requested amount faithfully
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userRequest },
         ],
-        max_tokens: 500,
+        max_tokens: 1500,
         temperature: 0.1,
-      });
+        ...(this.provider === 'openrouter' && this.model.includes('nemotron')
+          ? { reasoning: { max_tokens: 256 } }
+          : {}),
+      } as unknown as ChatCompletionCreateParamsNonStreaming);
 
       const content = response.choices[0]?.message?.content;
       if (!content) throw new Error('Empty AI response');
@@ -215,7 +219,10 @@ Proposed payment: ${proposedIntent.description} for ${proposedIntent.amount_mino
         ],
         max_tokens: 300,
         temperature: 0,
-      });
+        ...(this.provider === 'openrouter' && this.model.includes('nemotron')
+          ? { reasoning: { max_tokens: 256 } }
+          : {}),
+      } as unknown as ChatCompletionCreateParamsNonStreaming);
 
       const content = response.choices[0]?.message?.content;
       if (!content) throw new Error('Empty AI response');

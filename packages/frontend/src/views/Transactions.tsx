@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, Table, fmt, stateColor, ModeTag } from '../components/Card.tsx';
 
 export default function Transactions() {
+  const [searchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof api.listTransactions>>['transactions']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,12 +20,12 @@ export default function Transactions() {
 
   useEffect(() => {
     load();
-    const paymentStatus = new URLSearchParams(window.location.search).get('payment');
+    const paymentStatus = searchParams.get('payment');
     if (paymentStatus === 'returned') setActionMsg('PayPal returned you after buyer approval. Review the pending transaction below and click Capture.');
     if (paymentStatus === 'cancelled') setActionMsg('PayPal checkout was cancelled. The transaction remains pending; review it before taking action.');
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, searchParams]);
 
   async function capture(id: string) {
     setActionMsg('');

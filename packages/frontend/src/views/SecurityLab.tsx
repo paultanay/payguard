@@ -3,18 +3,18 @@ import { api, errorMessage } from '../api.ts';
 import { Card, Btn, SectionHeader, Badge } from '../components/Card.tsx';
 
 const SCENARIOS = [
-  { id: 'valid_payment', label: '✅ Valid Payment', desc: 'Complete payment within all policy limits' },
-  { id: 'exceed_per_transaction_limit', label: '💰 Exceed Per-Txn Limit', desc: 'Amount > max_amount_minor' },
-  { id: 'exhaust_budget', label: '📉 Exhaust Budget', desc: 'Sequential payments drain daily budget' },
-  { id: 'unauthorized_payee', label: '🚫 Unauthorized Payee', desc: 'Payee not in allowed list' },
-  { id: 'expired_intent', label: '⏰ Expired Intent', desc: 'TTL expired before execution' },
-  { id: 'replay_attack', label: '🔁 Replay Attack', desc: 'Re-execute an already-succeeded intent' },
-  { id: 'tampered_payload', label: '🔨 Tampered Payload', desc: 'Amount modified after signing' },
-  { id: 'budget_race', label: '🏁 Budget Race', desc: '3×$40 against $100 budget simultaneously' },
-  { id: 'malicious_ai_output', label: '🤖 Malicious AI Output', desc: 'AI tries to override budget' },
-  { id: 'provider_timeout', label: '⏱ Provider Timeout', desc: 'Ambiguous outcome — budget preserved' },
-  { id: 'tampered_audit', label: '📝 Tampered Audit Record', desc: 'Modify audit event metadata' },
-  { id: 'malformed_ai_output', label: '💥 Malformed AI Output', desc: 'Various invalid schema formats' },
+  { id: 'valid_payment', label: 'Valid payment', desc: 'Complete payment within all policy limits' },
+  { id: 'exceed_per_transaction_limit', label: 'Per-transaction limit', desc: 'Amount exceeds max_amount_minor' },
+  { id: 'exhaust_budget', label: 'Budget exhaustion', desc: 'Sequential payments drain daily budget' },
+  { id: 'unauthorized_payee', label: 'Unauthorized payee', desc: 'Payee is not in the allowed list' },
+  { id: 'expired_intent', label: 'Expired intent', desc: 'TTL expired before execution' },
+  { id: 'replay_attack', label: 'Replay attack', desc: 'Re-execute an already-succeeded intent' },
+  { id: 'tampered_payload', label: 'Tampered payload', desc: 'Amount modified after signing' },
+  { id: 'budget_race', label: 'Concurrent budget requests', desc: 'Three $40 requests against a $100 budget' },
+  { id: 'malicious_ai_output', label: 'Policy override attempt', desc: 'AI output attempts to override budget' },
+  { id: 'provider_timeout', label: 'Provider timeout', desc: 'Ambiguous outcome; budget is preserved' },
+  { id: 'tampered_audit', label: 'Tampered audit record', desc: 'Modify audit event metadata' },
+  { id: 'malformed_ai_output', label: 'Malformed AI output', desc: 'Validate invalid schema formats' },
 ];
 
 export default function SecurityLab() {
@@ -45,10 +45,10 @@ export default function SecurityLab() {
 
   return (
     <div>
-      <SectionHeader title="⚔️ Security Lab" sub="Runs actual application logic — not scripted animations" />
+      <SectionHeader title="Security lab" sub="Exercise policy and transaction controls with the simulated provider." />
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
-        <Btn onClick={runAll} disabled={running !== null}>▶ Run All Scenarios</Btn>
+        <Btn onClick={runAll} disabled={running !== null}>Run all scenarios</Btn>
         {totalRan > 0 && (
           <span style={{ fontSize: 13, color: passCount === totalRan ? 'var(--green)' : 'var(--yellow)' }}>
             {passCount}/{totalRan} passed
@@ -74,7 +74,7 @@ export default function SecurityLab() {
                   variant={result?.passed === false ? 'danger' : 'primary'}
                   style={{ fontSize: 12, padding: '6px 14px', flexShrink: 0 }}
                 >
-                  {isRunning ? '⏳ Running…' : result ? '↺ Re-run' : '▶ Run'}
+                  {isRunning ? 'Running…' : result ? 'Run again' : 'Run scenario'}
                 </Btn>
               </div>
 
@@ -98,7 +98,7 @@ export default function SecurityLab() {
                   </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
                     <Badge
-                      label={result.passed ? '✓ PASSED' : '✗ FAILED'}
+                      label={result.passed ? 'PASSED' : 'FAILED'}
                       color={result.passed ? 'green' : 'red'}
                     />
                     <Badge
