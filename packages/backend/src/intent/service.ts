@@ -17,7 +17,7 @@
 
 import type Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
-import { type CreateIntentInput, createSignedIntent, verifyIntentSignature, isIntentExpired, type SignedIntent } from './model.js';
+import { type CreateIntentInput, createSignedIntent, verifyIntentSignature, PaymentIntentStateSchema, type SignedIntent } from './model.js';
 import { PolicyEngine } from '../policy/engine.js';
 import { BudgetService } from '../budget/service.js';
 import { ApprovalService } from '../approval/service.js';
@@ -456,6 +456,14 @@ export class IntentService {
     };
   }
 
+  markApprovalApproved(intentId: string): void {
+    this.updateIntentState(intentId, 'PROPOSED', new Date().toISOString());
+  }
+
+  markApprovalRejected(intentId: string): void {
+    this.updateIntentState(intentId, 'FAILED', new Date().toISOString());
+  }
+
   getIntent(id: string): IntentRow | null {
     return (this.db.prepare('SELECT * FROM payment_intents WHERE id = ?').get(id) as IntentRow) ?? null;
   }
@@ -483,9 +491,20 @@ export class IntentService {
   }
 
   private updateIntentState(id: string, state: string, updatedAt: string): void {
-    this.db.prepare(
-      'UPDATE payment_intents SET state = ?, updated_at = ? WHERE id = ?'
-    ).run(state, updatedAt, id);
+    const intent = this.getIntent(id);
+    if (!intent) throw new Error(`Intent not found: ${id}`);
+
+    const from = PaymentIntentStateSchema.parse(intent.state);
+    const to = PaymentIntentStateSchema.parse(state);
+    if (from === to) return;
+
+    const transition = validateTransition({ from, to, actor: 'system', reason: 'Intent service update' });
+    if (!transition.allowed) throw new Error(transition.reason);
+
+    const result = this.db.prepare(
+      'UPDATE payment_intents SET state = ?, updated_at = ? WHERE id = ? AND state = ?'
+    ).run(to, updatedAt, id, from);
+    if (result.changes === 0) throw new Error(`Intent state changed before update: ${id}`);
   }
 
   private updateTransaction(id: string, updates: Partial<{

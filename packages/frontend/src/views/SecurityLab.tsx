@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { Card, Btn, SectionHeader, Badge } from '../components/Card.tsx';
 
 const SCENARIOS = [
@@ -18,7 +18,8 @@ const SCENARIOS = [
 ];
 
 export default function SecurityLab() {
-  const [results, setResults] = useState<Record<string, any>>({});
+  type ScenarioResult = Awaited<ReturnType<typeof api.runLabScenario>> | { error: string; passed: false };
+  const [results, setResults] = useState<Record<string, ScenarioResult>>({});
   const [running, setRunning] = useState<string | null>(null);
 
   const run = useCallback(async (scenarioId: string) => {
@@ -26,8 +27,8 @@ export default function SecurityLab() {
     try {
       const result = await api.runLabScenario(scenarioId);
       setResults(r => ({ ...r, [scenarioId]: result }));
-    } catch (e: any) {
-      setResults(r => ({ ...r, [scenarioId]: { error: e.message, passed: false } }));
+    } catch (error: unknown) {
+      setResults(r => ({ ...r, [scenarioId]: { error: errorMessage(error), passed: false } }));
     } finally {
       setRunning(null);
     }
@@ -39,7 +40,7 @@ export default function SecurityLab() {
     }
   }
 
-  const passCount = Object.values(results).filter((r: any) => r.passed).length;
+  const passCount = Object.values(results).filter(r => r.passed).length;
   const totalRan = Object.keys(results).length;
 
   return (
@@ -77,7 +78,7 @@ export default function SecurityLab() {
                 </Btn>
               </div>
 
-              {result && !result.error && (
+              {result && !('error' in result) && (
                 <div style={{ fontSize: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div>
@@ -115,7 +116,7 @@ export default function SecurityLab() {
                   )}
                 </div>
               )}
-              {result?.error && (
+              {result && 'error' in result && (
                 <div style={{ fontSize: 12, color: 'var(--red)', marginTop: 8 }}>Error: {result.error}</div>
               )}
             </Card>

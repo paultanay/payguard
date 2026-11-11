@@ -263,21 +263,27 @@ export class AuditService {
   }
 }
 
-const SENSITIVE_KEYS = new Set([
-  'password', 'secret', 'token', 'key', 'credential', 'access_token',
-  'refresh_token', 'client_secret', 'paypal_client_secret', 'private_key',
-]);
-
 function redactSensitive(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    if (SENSITIVE_KEYS.has(k.toLowerCase())) {
+    if (isSensitiveKey(k)) {
       out[k] = '[REDACTED]';
-    } else if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
-      out[k] = redactSensitive(v as Record<string, unknown>);
     } else {
-      out[k] = v;
+      out[k] = redactValue(v);
     }
   }
   return out;
+}
+
+function redactValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value !== null && typeof value === 'object') {
+    return redactSensitive(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+  return /(^|[^a-z])(password|secret|token|key|credential|authorization)([^a-z]|$)/.test(normalized);
 }

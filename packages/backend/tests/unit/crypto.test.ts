@@ -43,6 +43,21 @@ describe('canonicalJson', () => {
 });
 
 describe('Ed25519 signing', () => {
+  it('rejects non-hexadecimal key material', () => {
+    expect(() => hexToBytes('zz'.repeat(32))).toThrow();
+  });
+
+  it.each(['a'.repeat(63), 'z'.repeat(64)])('rejects an invalid configured signing key', async (key) => {
+    const previous = process.env.PAYGUARD_SIGNING_KEY;
+    process.env.PAYGUARD_SIGNING_KEY = key;
+    try {
+      await expect(getKeyPair()).rejects.toThrow(/PAYGUARD_SIGNING_KEY/);
+    } finally {
+      if (previous === undefined) delete process.env.PAYGUARD_SIGNING_KEY;
+      else process.env.PAYGUARD_SIGNING_KEY = previous;
+    }
+  });
+
   it('sign and verify round-trip succeeds', async () => {
     const { publicKeyHex } = await getKeyPair();
     const message = new TextEncoder().encode('test message');

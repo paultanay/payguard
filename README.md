@@ -1,30 +1,23 @@
-# 🛡️ PayGuard — AI Payment Authorization Gateway
+# PayGuard
 
-> **PayPal AI Hackathon 2026 Submission**  
-> A local-first, developer-facing authorization gateway for AI-agent payment workflows.
+Payment authorization for AI-assisted purchasing.
 
-[![Tests](https://img.shields.io/badge/tests-74%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-85%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#license)
 [![Provider](https://img.shields.io/badge/provider-PayPal%20Sandbox-003087)](#paypal-sandbox-setup)
 
 ---
 
-## What Is PayGuard?
+## Overview
 
-PayGuard sits between an AI agent and payment execution. It enforces deterministic spending policies, atomically reserves budget under concurrency, signs and verifies payment intents cryptographically, and produces a tamper-evident audit trail — all before a single dollar moves.
+PayGuard is a local service that checks proposed purchases against deterministic spending policies before creating PayPal Sandbox orders. It signs payment intents, reserves budget in SQLite, and records an audit chain.
 
-**Core principle:**
+The flow is:
 ```
-AI proposes → Policy engine decides → Gateway controls execution → PayPal reports state → Audit records everything
+AI proposes → policy evaluates → human approves if required → PayPal Sandbox processes → audit records the result
 ```
 
-The LLM is never the final security boundary.
-
----
-
-## What PayGuard Demonstrates
-
-PayGuard is a local payment authorization gateway, not a shopping agent. Its clearest technical story is that each proposed payment is bound to a signed intent, checked by deterministic policy, and represented in a portable audit bundle.
+## Capabilities and limits
 
 | Capability | What the demo proves | Boundary |
 |---|---|---|
@@ -33,44 +26,8 @@ PayGuard is a local payment authorization gateway, not a shopping agent. Its cle
 | **Replay and expiry checks** | Reused or expired intents are rejected before provider execution | Within this local service and database |
 | **PayTrace evidence** | Exported `.paytrace` JSON can be checked offline for hash and chain consistency | Project-specific format; not an external trust anchor |
 | **PayPal Sandbox checkout** | Buyer approval link followed by explicit capture after approval | Sandbox only; must be configured and exercised by the entrant |
-| **AI proposal and semantic check** | OpenAI model turns a request into a structured proposal and can flag a mismatch | Advisory only; deterministic policy remains authoritative |
+| **AI proposal and semantic check** | OpenRouter or OpenAI turns a request into a structured proposal and can flag a mismatch | Advisory only; deterministic policy remains authoritative |
 | **Security Lab** | Attack scenarios exercise real policy and transaction code | The lab always uses the simulator |
-
-Several current hackathon submissions describe overlapping AI payment guardrails. PayGuard's entry should focus on signed authorization details and portable tamper-evidence, and should avoid claims that the overall guardrail idea or individual features are unique.
-
----
-
-## Architecture
-
-```
-AI Agent / MCP Client
-        │
-        ▼
-  MCP Server (stdio)          ← @modelcontextprotocol/server v2
-        │
-        ▼
-  Fastify HTTP API (:3001)
-        │
-  ┌─────┴──────┐
-  │            │
-Policy      Payment Intent
-Engine      (Ed25519 signed)
-  │            │
-Budget      State Machine
-Reservation  (validated transitions)
-(atomic)        │
-  └─────┬──────┘
-        │
-  Provider Adapter
-  ├── PayPal Sandbox (AUTHORIZE→CAPTURE)
-  └── Deterministic Simulator (offline)
-        │
-  Audit Chain (SHA-256 hash chain)
-        │
-  SQLite (WAL mode, single-process guarantee)
-        │
-  React Dashboard (:5173)
-```
 
 ---
 
@@ -92,8 +49,8 @@ Optional:
 git clone https://github.com/paultanay/payguard.git
 cd payguard
 
-# Install all workspace dependencies
-npm install
+# Install locked workspace dependencies
+npm ci
 ```
 
 ---
@@ -101,7 +58,7 @@ npm install
 ## Environment Setup
 
 ```bash
-cp .env.example .env
+cp -n .env.example .env
 ```
 
 Edit `.env`. The minimum required for offline/simulated mode — **no credentials needed**:
@@ -167,16 +124,12 @@ curl http://localhost:3001/health
 ```bash
 # From the repository root
 npm test
-# Current suite: 74 tests across 10 test files
-
+# Current suite: 85 tests across 12 test files
 # Build backend, dashboard, and MCP package
 npm run build
 ```
 
-**Test categories:**
-- **Unit**: Crypto (Ed25519, SHA-256, canonical JSON), Policy engine (ALLOW/DENY/REQUIRE_APPROVAL), Budget reservations, Audit chain
-- **Integration**: Full payment flow, replay prevention, expiry, timeout reconciliation, idempotency, signature tamper detection
-- **Concurrency**: Budget race — N×$30 against $100 budget simultaneously, invariant verified
+The suite covers cryptographic signing, policy decisions, budget reservations, provider adapters, audit integrity, payment lifecycle integration, and concurrent budget requests.
 
 ---
 
@@ -234,7 +187,7 @@ The **simulator mode** skips PayPal and buyer approval entirely. Use it for offl
 
 ## Security Lab
 
-The Security Lab (dashboard → ⚔️ Security Lab) runs 12 attack scenarios against real application code:
+The Security Lab runs 12 scenarios against application policy and transaction code:
 
 All Security Lab scenarios intentionally use the simulated provider, even if PayPal Sandbox is configured. The lab results are labeled SIMULATED; they are not evidence of a Sandbox payment.
 
@@ -292,32 +245,14 @@ rm -f data/payguard.db
 
 ---
 
-## Security Limitations
+## Technical documentation
 
-- **Single-process only**: Budget invariant guaranteed within one Node.js process + one SQLite file. Multi-instance deployments require an external distributed lock or a distributed database.
-- **Local signing key**: Ed25519 private key is in-memory. A party controlling the process and DB can reconstruct the audit chain. The audit chain detects external tampering, not insider attacks with full access.
-- **Audit chain is not a blockchain**: Records can be rewritten by someone with DB write access + the signing key. Claim: detects accidental modification and external database tampering.
-- **AI semantic check is advisory**: It flags mismatches but cannot prevent all prompt injection. The deterministic policy engine is the final gate.
-- **No authentication**: The API has no authentication layer (by design for the hackathon demo). Production use requires bearer tokens or mTLS on all endpoints.
-- **PayPal Sandbox only**: The app refuses to operate with live PayPal credentials.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Threat model](docs/THREAT_MODEL.md)
+- [Security tests](docs/SECURITY_TESTS.md)
 
 ---
 
 ## License
 
 MIT — see [LICENSE](./LICENSE)
-
-## AI Tools
-
-- **In the product:** OpenRouter or OpenAI generates structured purchase proposals and performs an advisory semantic check. Set `AI_PROVIDER` to `openrouter` or `openai` and choose a model with `AI_MODEL`; OpenRouter defaults to its free `openrouter/free` route when its API key is the only one configured. Zod validates model output. The deterministic policy engine—not the model—authorizes or denies spending. Without an API key, the UI labels and uses a deterministic fallback; that mode is not an AI demonstration.
-- **During development:** OpenAI Codex assisted with implementation and review. The entrant should disclose development assistance accurately in the submission and remain able to explain and verify the work.
-
----
-
-## Hackathon Submission
-
-- **Event**: [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/)
-- **Deadline**: November 12, 2026 12:00 PM Pacific
-- **Demo video**: Not recorded yet. The rules require a publicly visible YouTube video under 3 minutes that shows a working project.
-- **Live demo / setup**: Follow the local setup above. Configure PayPal Sandbox and an AI key to demonstrate both required technologies; simulator and deterministic fallback are offline modes.
-- **Readiness**: This is a prototype, not ready to submit until the PayPal Sandbox approval/capture flow and actual AI path are exercised, then the public repository and video are linked on Devpost.

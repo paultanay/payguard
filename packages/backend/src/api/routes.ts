@@ -115,7 +115,7 @@ export function registerRoutes(
     });
 
     auditService.record('AI_PROPOSAL_CREATED', `req_${Date.now()}`, 'ai_request', {
-      user_request: body.data.user_request.slice(0, 200),
+      user_request_length: body.data.user_request.length,
       ai_generated: proposal.ai_generated,
       estimated_amount_minor: proposal.estimated_amount_minor,
     }, 'ai_agent');
@@ -251,6 +251,9 @@ export function registerRoutes(
 
     const intent = intentService.getIntent(approval.intent_id);
     if (!intent) return reply.code(404).send({ error: 'Intent not found' });
+    if (intent.state !== 'PENDING_APPROVAL') {
+      return reply.code(409).send({ error: `Intent is in state ${intent.state}` });
+    }
 
     const result = approvalService.approve(id, approvedBy, {
       amount_minor: intent.amount_minor,
@@ -265,9 +268,7 @@ export function registerRoutes(
       approval_id: id, approved_by: approvedBy,
     }, approvedBy);
 
-    // Update intent state
-    db.prepare("UPDATE payment_intents SET state = 'PROPOSED', updated_at = ? WHERE id = ?")
-      .run(new Date().toISOString(), approval.intent_id);
+    intentService.markApprovalApproved(approval.intent_id);
 
     return { success: true };
   });
@@ -280,7 +281,15 @@ export function registerRoutes(
     const approval = approvalService.getApproval(id);
     if (!approval) return reply.code(404).send({ error: 'Approval not found' });
 
-    approvalService.reject(id, reason);
+    const intent = intentService.getIntent(approval.intent_id);
+    if (!intent) return reply.code(404).send({ error: 'Intent not found' });
+    if (intent.state !== 'PENDING_APPROVAL') {
+      return reply.code(409).send({ error: `Intent is in state ${intent.state}` });
+    }
+    if (!approvalService.reject(id, reason)) {
+      return reply.code(409).send({ error: `Approval is ${approval.status}` });
+    }
+    intentService.markApprovalRejected(approval.intent_id);
     auditService.record('APPROVAL_REJECTED', approval.intent_id, 'intent', {
       approval_id: id, reason,
     }, 'user');

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { StatCard, Card, Badge, LoadingSpinner, ErrorBox, SectionHeader, ModeTag, fmt, stateColor, Btn } from '../components/Card.tsx';
 
 export default function Overview() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof api.getStats>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -11,8 +11,8 @@ export default function Overview() {
     try {
       const s = await api.getStats();
       setStats(s);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (error: unknown) {
+      setError(errorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -33,7 +33,7 @@ export default function Overview() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 32 }}>
-        <StatCard label="Provider Mode" value={stats?.provider_mode?.toUpperCase()} color="var(--accent)" />
+        <StatCard label="Provider Mode" value={stats?.provider_mode?.toUpperCase() ?? '—'} color="var(--accent)" />
         <StatCard
           label="Committed Spend"
           value={fmt(stats?.committed_spend_minor ?? 0)}
@@ -83,7 +83,7 @@ export default function Overview() {
           <p style={{ color: 'var(--muted)' }}>No events yet.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(stats?.recent_audit_events ?? []).slice(0, 10).map((e: any) => (
+            {(stats?.recent_audit_events ?? []).slice(0, 10).map(e => (
               <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 11, color: 'var(--small)', minWidth: 180 }}>{new Date(e.timestamp).toLocaleString()}</span>
                 <Badge label={e.event_type} color={stateColor(e.event_type.includes('DENY') || e.event_type.includes('FAIL') || e.event_type.includes('REJECT') ? 'FAIL' : 'OK')} />

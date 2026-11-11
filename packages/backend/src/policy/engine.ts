@@ -197,33 +197,44 @@ export class PolicyEngine {
   }
 
   updatePolicy(id: string, updates: Partial<CreatePolicyInput>): Policy | null {
-    const policy = this.getPolicyById(id);
-    if (!policy || policy.status !== 'active') return null;
+    const update = this.db.transaction(() => {
+      const policy = this.getPolicyById(id);
+      if (!policy || policy.status !== 'active') return null;
 
-    const now = new Date().toISOString();
-    const sets: string[] = ['updated_at = @updated_at', 'version = version + 1'];
-    const params: Record<string, unknown> = { id, updated_at: now };
+      const now = new Date().toISOString();
+      const sets: string[] = ['updated_at = @updated_at', 'version = version + 1'];
+      const params: Record<string, unknown> = { id, updated_at: now };
 
-    if (updates.max_amount_minor !== undefined) {
-      sets.push('max_amount_minor = @max_amount_minor');
-      params.max_amount_minor = updates.max_amount_minor;
-    }
-    if (updates.budget_limit_minor !== undefined) {
-      sets.push('budget_limit_minor = @budget_limit_minor');
-      sets.push('remaining_budget_minor = @budget_limit_minor');
-      params.budget_limit_minor = updates.budget_limit_minor;
-    }
-    if (updates.require_approval !== undefined) {
-      sets.push('require_approval = @require_approval');
-      params.require_approval = updates.require_approval ? 1 : 0;
-    }
-    if (updates.allowed_payees !== undefined) {
-      sets.push('allowed_payees = @allowed_payees');
-      params.allowed_payees = JSON.stringify(updates.allowed_payees);
-    }
+      if (updates.max_amount_minor !== undefined) {
+        sets.push('max_amount_minor = @max_amount_minor');
+        params.max_amount_minor = updates.max_amount_minor;
+      }
+      if (updates.budget_limit_minor !== undefined) {
+        const periodKey = computePeriodKey(policy.budget_period);
+        const spentThisPeriod = policy.budget_period_key === periodKey
+          ? Math.max(0, policy.budget_limit_minor - policy.remaining_budget_minor)
+          : 0;
+        sets.push('budget_limit_minor = @budget_limit_minor');
+        sets.push('remaining_budget_minor = @remaining_budget_minor');
+        sets.push('budget_period_key = @budget_period_key');
+        params.budget_limit_minor = updates.budget_limit_minor;
+        params.remaining_budget_minor = Math.max(0, updates.budget_limit_minor - spentThisPeriod);
+        params.budget_period_key = periodKey;
+      }
+      if (updates.require_approval !== undefined) {
+        sets.push('require_approval = @require_approval');
+        params.require_approval = updates.require_approval ? 1 : 0;
+      }
+      if (updates.allowed_payees !== undefined) {
+        sets.push('allowed_payees = @allowed_payees');
+        params.allowed_payees = JSON.stringify(updates.allowed_payees);
+      }
 
-    this.db.prepare(`UPDATE policies SET ${sets.join(', ')} WHERE id = @id`).run(params);
-    return this.getPolicyById(id);
+      this.db.prepare(`UPDATE policies SET ${sets.join(', ')} WHERE id = @id`).run(params);
+      return this.getPolicyById(id);
+    });
+
+    return update();
   }
 
   private rowToPolicy(row: Record<string, unknown>): Policy {

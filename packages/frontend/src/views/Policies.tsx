@@ -1,14 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, fmt, stateColor } from '../components/Card.tsx';
 
 export default function Policies() {
-  const [policies, setPolicies] = useState<any[]>([]);
+  type TextField = 'owner_id' | 'agent_id' | 'name' | 'max_amount_minor' | 'budget_limit_minor' | 'currency' | 'allowed_payees';
+  const fields: Array<{ key: TextField; label: string; type: 'text' | 'number' }> = [
+    { key: 'owner_id', label: 'Owner ID', type: 'text' },
+    { key: 'agent_id', label: 'Agent ID', type: 'text' },
+    { key: 'name', label: 'Policy Name', type: 'text' },
+    { key: 'max_amount_minor', label: 'Max Per-Transaction (minor units)', type: 'number' },
+    { key: 'budget_limit_minor', label: 'Budget Limit (minor units)', type: 'number' },
+    { key: 'currency', label: 'Currency', type: 'text' },
+    { key: 'allowed_payees', label: 'Allowed Payees (comma-separated, empty allows any)', type: 'text' },
+  ];
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof api.listPolicies>>['policies']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    owner_id: string; agent_id: string; name: string; max_amount_minor: number;
+    budget_limit_minor: number; budget_period: 'daily' | 'weekly' | 'monthly' | 'total';
+    currency: string; require_approval: boolean; allowed_payees: string;
+  }>({
     owner_id: 'user1', agent_id: 'ai_agent_1', name: 'Default Policy',
     max_amount_minor: 5000, budget_limit_minor: 50000,
     budget_period: 'daily', currency: 'USD', require_approval: false,
@@ -20,7 +34,7 @@ export default function Policies() {
     try {
       const { policies } = await api.listPolicies();
       setPolicies(policies);
-    } catch (e: any) { setError(e.message); }
+    } catch (error: unknown) { setError(errorMessage(error)); }
     finally { setLoading(false); }
   }, []);
 
@@ -38,13 +52,13 @@ export default function Policies() {
       setMsg('Policy created!');
       setShowCreate(false);
       load();
-    } catch (e: any) { setMsg('Error: ' + e.message); }
+    } catch (error: unknown) { setMsg(`Error: ${errorMessage(error)}`); }
     finally { setCreating(false); }
   }
 
   async function revokePolicy(id: string) {
     if (!confirm('Revoke this policy?')) return;
-    try { await api.revokePolicy(id); load(); } catch (e: any) { alert(e.message); }
+    try { await api.revokePolicy(id); load(); } catch (error: unknown) { alert(errorMessage(error)); }
   }
 
   if (loading) return <LoadingSpinner />;
@@ -63,21 +77,13 @@ export default function Policies() {
         <Card style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>New Policy</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[
-              ['owner_id', 'Owner ID', 'text'],
-              ['agent_id', 'Agent ID', 'text'],
-              ['name', 'Policy Name', 'text'],
-              ['max_amount_minor', 'Max Per-Transaction (minor units)', 'number'],
-              ['budget_limit_minor', 'Budget Limit (minor units)', 'number'],
-              ['currency', 'Currency', 'text'],
-              ['allowed_payees', 'Allowed Payees (comma-sep, empty=any)', 'text'],
-            ].map(([key, label, type]) => (
-              <label key={key as string} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {fields.map(({ key, label, type }) => (
+              <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <span style={{ fontSize: 12, color: 'var(--muted)' }}>{label}</span>
                 <input
                   type={type as string}
-                  value={(form as any)[key as string]}
-                  onChange={e => setForm(f => ({ ...f, [key as string]: e.target.value }))}
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: type === 'number' ? Number(e.target.value) : e.target.value }))}
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', color: 'var(--text)', fontSize: 13 }}
                 />
               </label>

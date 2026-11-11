@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createTestDb } from '../../src/db/connection.js';
 import { PolicyEngine } from '../../src/policy/engine.js';
+import { BudgetService } from '../../src/budget/service.js';
 import { computePeriodKey } from '../../src/policy/model.js';
 import type Database from 'better-sqlite3';
 
@@ -37,6 +38,18 @@ describe('PolicyEngine', () => {
         })
       ).toThrow();
     });
+  });
+
+  it('preserves committed and reserved spend when the budget limit changes', () => {
+    const policy = engine.createPolicy({
+      owner_id: 'user1', agent_id: 'agent1', name: 'Budget update',
+      max_amount_minor: 5000, budget_limit_minor: 10000,
+    });
+    new BudgetService(db).reserve('int_reserved', policy.id, 3000, 'USD');
+
+    const updated = engine.updatePolicy(policy.id, { budget_limit_minor: 20000 });
+
+    expect(updated?.remaining_budget_minor).toBe(17000);
   });
 
   describe('evaluate — DENY cases', () => {

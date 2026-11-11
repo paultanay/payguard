@@ -22,7 +22,7 @@
 
 import type Database from 'better-sqlite3';
 import { nanoid } from 'nanoid';
-import { computePeriodKey } from '../policy/model.js';
+import { BudgetPeriodSchema, computePeriodKey } from '../policy/model.js';
 
 export type ReservationStatus = 'reserved' | 'consumed' | 'released' | 'failed';
 
@@ -86,7 +86,7 @@ export class BudgetService {
         return { success: false as const, reason: `Currency mismatch: policy=${policy.currency}` };
       }
 
-      const currentPeriodKey = computePeriodKey(policy.budget_period as never);
+      const currentPeriodKey = computePeriodKey(BudgetPeriodSchema.parse(policy.budget_period));
 
       // If the budget period has rolled over, reset remaining_budget_minor first
       if (currentPeriodKey !== policy.budget_period_key) {
@@ -181,31 +181,40 @@ export class BudgetService {
    * Only releases if the reservation is still in 'reserved' state.
    */
   release(reservationId: string): boolean {
-    const reservation = this.db.prepare(
-      'SELECT * FROM budget_reservations WHERE id = ?'
-    ).get(reservationId) as BudgetReservation | undefined;
-
-    if (!reservation || reservation.status !== 'reserved') return false;
-
     const now = new Date().toISOString();
-
     const atomicRelease = this.db.transaction(() => {
-      this.db.prepare(`
-        UPDATE policies
-        SET remaining_budget_minor = remaining_budget_minor + ?,
-            updated_at = ?
-        WHERE id = ?
-      `).run(reservation.amount_minor, now, reservation.policy_id);
+      const reservation = this.db.prepare(
+        'SELECT * FROM budget_reservations WHERE id = ?'
+      ).get(reservationId) as BudgetReservation | undefined;
+      if (!reservation || reservation.status !== 'reserved') return false;
 
-      this.db.prepare(`
+      const policy = this.db.prepare(
+        'SELECT budget_period, budget_period_key FROM policies WHERE id = ?'
+      ).get(reservation.policy_id) as { budget_period: string; budget_period_key: string } | undefined;
+
+      const released = this.db.prepare(`
         UPDATE budget_reservations
         SET status = 'released', updated_at = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'reserved'
       `).run(now, reservationId);
+      if (released.changes === 0) return false;
+
+      if (policy) {
+        const currentPeriodKey = computePeriodKey(BudgetPeriodSchema.parse(policy.budget_period));
+        if (reservation.period_key === currentPeriodKey && policy.budget_period_key === currentPeriodKey) {
+          this.db.prepare(`
+            UPDATE policies
+            SET remaining_budget_minor = MIN(budget_limit_minor, remaining_budget_minor + ?),
+                updated_at = ?
+            WHERE id = ?
+          `).run(reservation.amount_minor, now, reservation.policy_id);
+        }
+      }
+
+      return true;
     });
 
-    atomicRelease();
-    return true;
+    return atomicRelease();
   }
 
   getReservation(id: string): BudgetReservation | null {

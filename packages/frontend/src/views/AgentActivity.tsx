@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, fmt, stateColor } from '../components/Card.tsx';
 
 export default function AgentActivity() {
-  const [policies, setPolicies] = useState<any[]>([]);
-  const [intents, setIntents] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof api.listPolicies>>['policies']>([]);
+  const [intents, setIntents] = useState<Awaited<ReturnType<typeof api.listIntents>>['intents']>([]);
+  const [approvals, setApprovals] = useState<Awaited<ReturnType<typeof api.listPendingApprovals>>['approvals']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [aiRequest, setAiRequest] = useState('');
   const [selectedPolicy, setSelectedPolicy] = useState('');
-  const [proposal, setProposal] = useState<any>(null);
+  const [proposal, setProposal] = useState<Awaited<ReturnType<typeof api.generateProposal>>['proposal'] | null>(null);
   const [proposalLoading, setProposalLoading] = useState(false);
-  const [semanticCheck, setSemanticCheck] = useState<any>(null);
+  const [semanticCheck, setSemanticCheck] = useState<Awaited<ReturnType<typeof api.semanticCheck>>['result'] | null>(null);
   const [approvalUrl, setApprovalUrl] = useState('');
   const [actionMsg, setActionMsg] = useState('');
 
@@ -27,7 +27,7 @@ export default function AgentActivity() {
       setIntents(intents);
       setApprovals(approvals);
       if (policies.length > 0 && !selectedPolicy) setSelectedPolicy(policies[0].id);
-    } catch (e: any) { setError(e.message); }
+    } catch (error: unknown) { setError(errorMessage(error)); }
     finally { setLoading(false); }
   }, []);
 
@@ -39,7 +39,7 @@ export default function AgentActivity() {
     try {
       const { proposal } = await api.generateProposal(aiRequest, selectedPolicy || undefined);
       setProposal(proposal);
-    } catch (e: any) { setActionMsg('Error: ' + e.message); }
+    } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
     finally { setProposalLoading(false); }
   }
 
@@ -80,15 +80,15 @@ export default function AgentActivity() {
         setActionMsg(`🚫 DENIED — ${result.reason}`);
       }
       load();
-    } catch (e: any) { setActionMsg('Error: ' + e.message); }
+    } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   async function approveApproval(id: string) {
-    try { await api.approveApproval(id); load(); setActionMsg('✅ Approved'); } catch (e: any) { setActionMsg('Error: ' + e.message); }
+    try { await api.approveApproval(id); load(); setActionMsg('✅ Approved'); } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   async function rejectApproval(id: string) {
-    try { await api.rejectApproval(id); load(); setActionMsg('Rejected'); } catch (e: any) { setActionMsg('Error: ' + e.message); }
+    try { await api.rejectApproval(id); load(); setActionMsg('Rejected'); } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   if (loading) return <LoadingSpinner />;
@@ -179,7 +179,7 @@ export default function AgentActivity() {
       {approvals.length > 0 && (
         <Card style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>⏳ Pending Approvals ({approvals.length})</div>
-          {approvals.map((a: any) => (
+          {approvals.map(a => (
             <div key={a.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>Approval: {a.id}</div>
@@ -201,7 +201,7 @@ export default function AgentActivity() {
           <p style={{ color: 'var(--muted)' }}>No intents yet. Generate a proposal above.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {intents.slice(0, 15).map((i: any) => (
+            {intents.slice(0, 15).map(i => (
               <div key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
                 <Badge label={i.state} color={stateColor(i.state)} />
                 <span style={{ flex: 1, minWidth: 0 }}>

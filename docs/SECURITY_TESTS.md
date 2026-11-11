@@ -1,218 +1,35 @@
-# PayGuard — Security Tests
+# Tests and security checks
 
-## Running All Tests
+## Run the checks
+
+From the repository root:
 
 ```bash
+npm ci
 npm test
+npm run build
+npm audit
 ```
 
-**Current output: 74 tests passing, 0 failing across 10 files**
+The automated suite uses in-memory SQLite databases, a local HTTP test server for the OpenAI-compatible AI adapter, and simulated payment providers. It does not require PayPal or AI credentials and does not make live provider calls.
 
-Last verified: 2026-11-07, Node.js v26.10.0
+## Coverage
 
----
-
-## Test Suite Breakdown
-
-### Unit Tests
-
-#### `tests/unit/crypto.test.ts` (10 tests)
-
-| Test | Security Invariant |
+| Area | Checks |
 |---|---|
-| SHA-256 consistent output | Deterministic hashing |
-| SHA-256 differs for different inputs | Collision sensitivity |
-| SHA-256 produces 64-char hex | Correct format |
-| canonicalJson sorts keys deterministically | Canonical serialization |
-| Nested objects sorted | Deep canonical form |
-| Different values → different hash | Tamper sensitivity |
-| Tampered amount changes canonical hash | **Invariant 4**: Modified signed intent rejected |
-| Ed25519 sign + verify round-trip | **Invariant 1**: Signature validity |
-| Signature fails with wrong key | Key binding |
-| Signature fails with tampered message | **Invariant 4**: Tamper detection |
+| Policy and budget | Per-transaction and period limits, payees, operations, policy status, atomic reservation, budget changes, reservation release |
+| Intents and state | Ed25519 signatures, canonical fields, expiry, replay, approval, allowed state transitions |
+| Payment providers | Sandbox payload construction, buyer approval URL, sandbox host restriction, capture result amount and currency |
+| Audit | Hash-chain verification, tampering, recursive credential redaction, prompt text excluded from AI proposal audit events |
+| AI | OpenRouter and OpenAI configuration selection, OpenAI-compatible request handling, output schema validation, deterministic fallback |
 
-```bash
-npx vitest run tests/unit/crypto.test.ts
-```
+The Security Lab has 12 scenarios. It always uses the simulator; its results do not demonstrate PayPal Sandbox behavior.
 
----
+## Known limits
 
-#### `tests/unit/policy.test.ts` (15 tests)
-
-| Test | Security Invariant |
-|---|---|
-| Creates policy with correct defaults | Policy model correctness |
-| Rejects negative amount | Input validation |
-| Denies when policy not found | **Invariant 1**: No payment without valid policy |
-| Denies when agent ID mismatch | Agent binding |
-| Denies when amount exceeds per-transaction limit | Spend limit enforcement |
-| Denies when payee not in allowed list | Payee restriction |
-| Denies when currency mismatches | Currency binding |
-| Denies when operation not allowed | Operation restriction |
-| Denies when policy is revoked | **Invariant 17**: Revoked policy safe failure |
-| Denies when budget is zero | Budget exhaustion |
-| Allows valid request within policy | ALLOW path |
-| REQUIRE_APPROVAL when policy requires it | Approval workflow |
-| computePeriodKey: daily | Period calculation |
-| computePeriodKey: monthly | Period calculation |
-| computePeriodKey: total | Period calculation |
-
-```bash
-npx vitest run tests/unit/policy.test.ts
-```
-
----
-
-#### `tests/unit/budget.test.ts` (9 tests)
-
-| Test | Security Invariant |
-|---|---|
-| Reserves budget atomically | **Invariant 7**: Atomic reservation |
-| Fails when amount exceeds remaining budget | **Invariant 7**: Budget enforcement |
-| Two sequential reservations within budget | Normal flow |
-| Third reservation fails when budget exhausted | **Invariant 7**: Exhaustion enforcement |
-| Releasing a reservation restores budget | Budget release correctness |
-| Consuming reservation does not restore budget | **Invariant 8**: Consumed reservation permanent |
-| Cannot release already consumed reservation | **Invariant 8**: No double-release |
-| Currency mismatch fails reservation | Currency validation |
-| 5 simultaneous $30 requests against $100 budget: exactly 3 succeed | **Invariant 7**: Concurrent race invariant |
-
-```bash
-npx vitest run tests/unit/budget.test.ts
-```
-
----
-
-#### `tests/unit/audit.test.ts` (8 tests)
-
-| Test | Security Invariant |
-|---|---|
-| Monotonically increasing sequence numbers | Chain ordering |
-| Hash chain linkage correct | **Invariant 14**: Chain integrity |
-| Clean chain verifies successfully | Verification baseline |
-| Detects tampered event metadata | **Invariant 14**: Tamper detection |
-| Detects deleted event (chain break) | **Invariant 14**: Deletion detection |
-| Detects reordered events (prev_hash corruption) | **Invariant 14**: Reorder detection |
-| Redacts sensitive fields | **Invariant 15**: No secrets in audit |
-| Empty chain verifies successfully | Edge case |
-
-```bash
-npx vitest run tests/unit/audit.test.ts
-```
-
----
-
-#### `tests/unit/intent.test.ts` (10 tests)
-
-| Test | Security Invariant |
-|---|---|
-| Creates intent with valid signature | Signing correctness |
-| Uses integer minor units (no floating point) | Monetary arithmetic |
-| Verifies freshly created intent | Signature validity |
-| Fails when amount is tampered | **Invariant 4**: Amount tamper detection |
-| Fails when payee is tampered | **Invariant 4**: Payee tamper detection |
-| Fails when description is tampered | **Invariant 4**: Field tamper detection |
-| Fails with wrong public key | Key binding |
-| Detects expired intent | **Invariant 5**: Expiration |
-| Valid intent is not expired | Expiration baseline |
-| Applies default expiry when TTL is omitted | Schema default and input typing |
-
-```bash
-npx vitest run tests/unit/intent.test.ts
-```
-
-#### Additional Unit Tests
-
-- `tests/unit/ai.test.ts` verifies the deterministic fallback does not lower an explicitly requested amount to fit a policy limit.
-- `tests/unit/paypal.test.ts` verifies email payee payloads, approval links, and rejection of non-Sandbox API hosts.
-- `tests/unit/paytrace.test.ts` covers portable audit bundle structure, chain integrity, and tamper detection (7 tests).
-
----
-
-### Integration Tests
-
-#### `tests/integration/payment-flow.test.ts` (8 tests)
-
-| Test | Security Invariant |
-|---|---|
-| Complete successful payment flow (create→execute→capture) | End-to-end correctness |
-| Replay rejected after success | **Invariant 6**: Prohibited replay |
-| Over-limit amount denied, provider not called | **Invariant 11**: Forbidden request never reaches provider |
-| Expired intent rejected before provider call | **Invariant 5**: Expiration enforcement |
-| Provider timeout → RECONCILIATION_REQUIRED, budget held | **Invariant 9**: Timeout ≠ payment failure |
-| Capture amount/currency mismatch → reconciliation, budget held | Provider result binding |
-| Tampered signature fails verification | **Invariant 4**: Signature tamper detection |
-| Idempotency: same key returns same intent | **Invariant 19**: Idempotent retries |
-
-```bash
-npx vitest run tests/integration/payment-flow.test.ts
-```
-
----
-
-### Concurrency Tests
-
-#### `tests/concurrency/budget-race.test.ts` (4 tests)
-
-| Test | Security Invariant |
-|---|---|
-| 10×$30 against $100 budget: max 3 succeed, total ≤ $100 | **Invariant 7**: Budget invariant under concurrency |
-| Exact budget (2×$30 against $60): exactly 2 succeed | **Invariant 7**: No over-spend |
-| Full flow: 5×$40 against $100: at most 2 succeed | **Invariant 7**: Full lifecycle race |
-| Release restores budget for retry | Budget release correctness |
-
-```bash
-npx vitest run tests/concurrency/budget-race.test.ts
-```
-
----
-
-## Security Lab Scenarios (Live API)
-
-These require the server running (`USE_SIMULATOR=true npx tsx src/server.ts`).
-
-Run all via dashboard → ⚔️ Security Lab, or via API:
-
-```bash
-# Run a specific scenario
-curl -s -X POST http://localhost:3001/api/lab/run-scenario \
-  -H "Content-Type: application/json" \
-  -d '{"scenario":"tampered_payload"}' | python3 -m json.tool
-
-# All scenario IDs:
-# valid_payment, exceed_per_transaction_limit, exhaust_budget,
-# unauthorized_payee, expired_intent, replay_attack,
-# tampered_payload, budget_race, malicious_ai_output,
-# provider_timeout, tampered_audit, malformed_ai_output
-```
-
-Each response includes `"passed": true/false` and `"provider_invoked": true/false`.
-
-**For forbidden requests (DENY), provider_invoked must be false.** This is verified by the lab.
-
----
-
-## Known Limitations and Untested Scenarios
-
-| Gap | Notes |
-|---|---|
-| Multi-process budget race | SQLite WAL prevents within-process over-spend but NOT across separate Node.js processes sharing the same file. Production needs distributed locking. |
-| Webhook forgery | Webhooks not implemented. If added, must verify via PayPal's signature verification API. |
-| PayPal live credentials | All tests use simulator or sandbox. No live payment tests. |
-| Key rotation | No mechanism to rotate the signing key without invalidating all existing signatures. |
-| Rate limiting | API has no rate limiting in this version. Production requires it. |
-| Authentication | API is unauthenticated. All invariants hold for the authorization logic but any caller can access any endpoint. |
-
----
-
-## Audit Chain Verification
-
-```bash
-# Verify entire audit chain via API
-curl -s -X POST http://localhost:3001/api/audit/verify \
-  -H "Content-Type: application/json" -d '{}'
-
-# Expected: {"verification":{"valid":true,"total_events":N,"errors":[],"checked_at":"..."}}
-```
-
-After the `tampered_audit` lab scenario, this will return `"valid": false` with error details — demonstrating detection.
+- No API authentication, user authorization, or rate limiting. Any process that can reach the local API can access and modify its data.
+- The budget invariant is tested for one backend process and one SQLite file. Sharing the file across multiple processes is unsupported.
+- The signing key is ephemeral unless `PAYGUARD_SIGNING_KEY` is configured. There is no key rotation procedure.
+- PayPal Sandbox and live AI integrations require manual testing with credentials. Automated tests use local fixtures instead.
+- `.paytrace` verification checks hashes and chain links. It does not prove the bundle's origin or that a payment settled.
+- OpenRouter free models can be unavailable or rate-limited. Prompt handling and retention depend on the selected model provider; do not send secrets or sensitive payment information.

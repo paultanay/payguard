@@ -94,6 +94,20 @@ describe('AuditService', () => {
     expect(events[0].metadata.name).toBe('Test');
   });
 
+  it('redacts keys inside arrays and provider-specific API key fields', () => {
+    audit.record('POLICY_CREATED', 'pol_2', 'policy', {
+      openrouter_api_key: 'router-secret',
+      authorization: 'Bearer confidential-token',
+      providers: [{ clientSecret: 'nested-secret' }, { name: 'safe' }],
+    });
+
+    const [event] = audit.getEvents({ entity_id: 'pol_2' });
+    expect(event.metadata.openrouter_api_key).toBe('[REDACTED]');
+    expect(event.metadata.authorization).toBe('[REDACTED]');
+    expect((event.metadata.providers as Array<Record<string, unknown>>)[0].clientSecret).toBe('[REDACTED]');
+    expect((event.metadata.providers as Array<Record<string, unknown>>)[1].name).toBe('safe');
+  });
+
   it('empty chain verifies successfully', () => {
     const result = audit.verify();
     expect(result.valid).toBe(true);

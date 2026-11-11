@@ -1,148 +1,44 @@
-# PayGuard — Architecture
+# Architecture
 
-## Overview
+PayGuard is a local service with a React dashboard and an optional MCP server. The backend uses one SQLite database and one payment provider per process.
 
-PayGuard is a local-first authorization gateway that sits between an AI agent and PayPal payment execution. It enforces deterministic spending policies, atomically reserves budget, signs and verifies payment intents, and produces a verifiable audit chain.
+## Components
 
-```
-AI Agent / MCP Client
-        │
-        ▼
-  ┌─────────────┐
-  │  MCP Server │  (stdio or HTTP)
-  │  Tools:     │
-  │  create_proposal
-  │  evaluate_policy
-  │  request_approval
-  │  get_status
-  │  get_audit
-  └──────┬──────┘
-         │
-         ▼
-  ┌──────────────────────────────────┐
-  │         Fastify HTTP API         │
-  │  /api/policies  /api/intents     │
-  │  /api/transactions  /api/audit   │
-  └──────────────┬───────────────────┘
-                 │
-         ┌───────┴────────┐
-         │                │
-  ┌──────▼──────┐  ┌──────▼──────┐
-  │  Policy     │  │  Payment    │
-  │  Engine     │  │  Intent     │
-  │  (no LLM)   │  │  (signing)  │
-  └──────┬──────┘  └──────┬──────┘
-         │                │
-  ┌──────▼──────┐  ┌──────▼──────┐
-  │  Budget     │  │  State      │
-  │  Reserve    │  │  Machine    │
-  │  (atomic)   │  │             │
-  └──────┬──────┘  └──────┬──────┘
-         │                │
-  ┌──────▼────────────────▼──────┐
-  │          SQLite DB           │
-  │  (better-sqlite3, WAL mode)  │
-  └──────────────────────────────┘
-         │
-  ┌──────▼──────┐
-  │  Provider   │
-  │  Adapter    │
-  │  PayPal     │
-  │  Simulator  │
-  └─────────────┘
-         │
-  ┌──────▼──────┐
-  │  Audit      │
-  │  Chain      │
-  │  (hash)     │
-  └─────────────┘
+| Package | Responsibility |
+|---|---|
+| `packages/backend` | Fastify API, policy evaluation, intent signing, budget reservations, approvals, provider calls, and audit records |
+| `packages/frontend` | React dashboard served by Vite in development and Fastify in a production build |
+| `packages/mcp` | MCP server over stdio; imports backend services and uses the configured database and provider |
 
-React Dashboard (Vite, separate port)
-```
+The backend and MCP server load configuration from the repository root `.env`. `DB_PATH` may be absolute or relative to the repository root. The HTTP server binds to `127.0.0.1` by default.
 
-## Technology Choices
+## Payment flow
 
-| Concern | Choice | Rationale |
-|---------|--------|-----------|
-| Runtime | Node.js v26 LTS | Available, proven |
-| Language | TypeScript strict | Type safety, Zod integration |
-| Backend framework | Fastify | Fast, schema validation built-in |
-| Database | SQLite + better-sqlite3 | Synchronous, WAL mode, local-first, atomic UPDATE |
-| ORM/Query | Raw SQL + migrations | Full control over locking semantics |
-| Schema validation | Zod | Runtime + compile-time |
-| Signing | @noble/ed25519 | Audited, zero-dep Ed25519 |
-| Test framework | Vitest | Fast, compatible with Node 26 |
-| Frontend | React + Vite | SPA, developer-facing |
-| MCP | @modelcontextprotocol/server v2 | Official, 2026-07-28 spec |
-| AI | openai SDK (optional) | Graceful degradation without key |
+1. `POST /api/ai/propose` asks the configured OpenRouter or OpenAI model for a structured proposal. Without a configured key, it returns a deterministic fallback marked as non-AI.
+2. `POST /api/intents` signs the payment fields and evaluates them against the selected policy. A policy denial does not call the payment provider. Policies that require review create a pending approval.
+3. `POST /api/intents/:id/execute` verifies the signed intent and expiry, checks approval when required, reserves budget in a SQLite transaction, then creates a PayPal Sandbox order or a simulated order.
+4. For PayPal, the buyer approves the order at PayPal. The operator then captures it from Transactions.
+5. PayGuard compares the captured amount and currency with the intent, updates the reservation and state, and records the result in the audit log.
 
-## Module Boundaries
+The AI output is advisory. The deterministic policy engine controls authorization.
 
-```
-packages/backend/src/
-  policy/          — Policy model, evaluation engine (no LLM)
-  intent/          — Payment intent schema, canonical serialization, signing
-  budget/          — Atomic budget reservation (SQLite transaction)
-  state-machine/   — Payment lifecycle transitions
-  approval/        — Approval workflow
-  audit/           — Audit event recording, hash chain, verifier
-  provider/        — PayPal adapter + deterministic simulator
-  ai/              — AI adapter (proposal generation, semantic check)
-  mcp/             — MCP server tools
-  api/             — Fastify routes
-  db/              — Schema, migrations, connection
-  crypto/          — Key management, signing utilities
+## Data and state
 
-packages/frontend/src/
-  views/           — Dashboard views
-  components/      — UI components
-  hooks/           — Data fetching
+SQLite stores policies, payment intents, approvals, transactions, budget reservations, idempotency records, revocations, and audit events. The schema is defined in `packages/backend/src/db/schema.ts`.
 
-packages/mcp/
-  — Standalone MCP entry point (imports backend modules)
-```
+Intents are signed with Ed25519 over canonicalized payment fields. Their lifecycle updates are checked against `packages/backend/src/state-machine/transitions.ts`. Budget reservations use a `BEGIN IMMEDIATE` transaction and an atomic update to the policy's remaining budget.
 
-## Database Schema (Key Tables)
+Audit events contain a SHA-256 hash of their canonical fields and the previous event hash. The `.paytrace` export can verify those hashes and links offline. It has no external signature or trust anchor, so it does not establish who created the file or whether a payment settled.
 
-- **policies** — id, owner_id, agent_id, rules (JSON), status, version, created_at, expires_at
-- **payment_intents** — id, policy_id, nonce, canonical_hash, signature, amount_minor, currency, payee_id, description, state, created_at, expires_at, idempotency_key
-- **budget_reservations** — id, intent_id, policy_id, period_key, amount_minor, currency, status, created_at, transaction_id
-- **transactions** — id, intent_id, provider_id, provider_mode, state, amount_minor, currency, payee_id, approval_id, created_at, updated_at
-- **approvals** — id, intent_id, policy_version, fields_hash, status, approved_by, created_at, expires_at
-- **audit_events** — id, sequence_num, prev_hash, event_hash, event_type, entity_id, metadata (JSON), timestamp, signature
-- **idempotency_records** — key, intent_id, response_hash, created_at
-- **revocation_records** — entity_id, entity_type, revoked_at, reason
+## Provider and AI configuration
 
-## Key Security Properties
+The payment adapter supports PayPal Sandbox and an in-memory simulator. It rejects non-Sandbox PayPal API hosts. Security Lab scenarios always use the simulator.
 
-1. **Policy-first:** Every payment requires a valid, non-expired, non-revoked policy. No policy → DENY.
-2. **Atomic reservations:** SQLite `UPDATE policies SET remaining_budget = remaining_budget - ? WHERE id = ? AND remaining_budget >= ?` in `BEGIN IMMEDIATE` transaction. Atomic deduction before provider call.
-3. **Signed intents:** Ed25519 signature over canonical JSON binding: policy_id, agent_id, amount, currency, payee, description, nonce, expires_at. Verification before any state transition.
-4. **Replay prevention:** Nonce stored durably; second use of same nonce → REJECT. Expiration enforced at verification time.
-5. **State machine:** Only backend can advance state. Frontend cannot directly set SUCCEEDED.
-6. **Audit chain:** Each event includes SHA-256 of previous event. Verifier checks chain integrity.
-7. **Provider abstraction:** PayPal adapter and simulator share identical interface. Offline mode clearly labeled.
+The AI adapter uses the OpenAI SDK's chat completion interface. `AI_PROVIDER` selects `openai` or `openrouter`; `AI_MODEL` selects the model. If only `OPENROUTER_API_KEY` is set, the adapter selects OpenRouter and defaults to `openrouter/free`. If no supported key is set, proposal generation uses its deterministic fallback and semantic checks report that no AI call was made.
 
-## Trust Boundaries
+## Runtime limits
 
-```
-UNTRUSTED: AI agent, MCP client, browser frontend, webhook body
-TRUSTED:   Backend process, SQLite DB (local), signing key (in-memory/env)
-EXTERNAL:  PayPal API (trusted for payment state, not for authorization decisions)
-```
-
-## State Machine
-
-```
-PROPOSED → PENDING_APPROVAL → RESERVED → PAYMENT_PENDING → AUTHORIZED
-         ↗                  ↘ FAILED    → CAPTURE_PENDING → SUCCEEDED
-                                        ↓                 ↘ FAILED
-                                    RECONCILIATION_REQUIRED
-                    EXPIRED ← (timeout)
-                    RELEASED ← (budget released)
-```
-
-## Deployment Model
-
-Single-process, single-SQLite-file. Budget invariants hold within one process.
-Multi-instance safety: NOT guaranteed. Documented limitation.
+- The API has no authentication or per-user authorization. Keep it on loopback and do not expose it to untrusted clients.
+- Budget guarantees apply to one process using one SQLite database file. Multiple backend or MCP processes sharing that file are not supported.
+- The signing key is generated in memory unless `PAYGUARD_SIGNING_KEY` is set. Generated signatures do not survive a restart.
+- PayPal live payments and webhooks are not supported.

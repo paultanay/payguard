@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, Table, fmt, stateColor, ModeTag } from '../components/Card.tsx';
 
 export default function Transactions() {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<Awaited<ReturnType<typeof api.listTransactions>>['transactions']>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionMsg, setActionMsg] = useState('');
@@ -12,7 +12,7 @@ export default function Transactions() {
     try {
       const { transactions } = await api.listTransactions();
       setTransactions(transactions);
-    } catch (e: any) { setError(e.message); }
+    } catch (error: unknown) { setError(errorMessage(error)); }
     finally { setLoading(false); }
   }, []);
 
@@ -31,7 +31,7 @@ export default function Transactions() {
       const result = await api.captureTransaction(id);
       setActionMsg(`Transaction ${result.state}`);
       load();
-    } catch (e: any) { setActionMsg('Error: ' + e.message); }
+    } catch (error: unknown) { setActionMsg(`Error: ${errorMessage(error)}`); }
   }
 
   if (loading) return <LoadingSpinner />;

@@ -69,6 +69,17 @@ describe('BudgetService — atomic reservations', () => {
     expect(budgetService.getRemainingBudget(policy.id)).toBe(10000);
   });
 
+  it('does not credit a prior-period reservation to the current budget', () => {
+    const policy = makePolicy(10000);
+    const result = budgetService.reserve('int_previous_period', policy.id, 3000, 'USD');
+    db.prepare('UPDATE budget_reservations SET period_key = ? WHERE id = ?')
+      .run('previous-period', result.reservation!.id);
+    db.prepare('UPDATE policies SET remaining_budget_minor = 4000 WHERE id = ?').run(policy.id);
+
+    expect(budgetService.release(result.reservation!.id)).toBe(true);
+    expect(budgetService.getRemainingBudget(policy.id)).toBe(4000);
+  });
+
   it('consuming a reservation does not restore budget', () => {
     const policy = makePolicy(10000);
     const r = budgetService.reserve('int_1', policy.id, 5000, 'USD');

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../api.ts';
+import { api, errorMessage } from '../api.ts';
 import { Card, Badge, Btn, SectionHeader, LoadingSpinner, ErrorBox, stateColor } from '../components/Card.tsx';
 
 export default function AuditView() {
-  const [events, setEvents] = useState<any[]>([]);
-  const [verification, setVerification] = useState<any>(null);
+  const [events, setEvents] = useState<Awaited<ReturnType<typeof api.getAuditEvents>>['events']>([]);
+  const [verification, setVerification] = useState<Awaited<ReturnType<typeof api.verifyAudit>>['verification'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
@@ -14,7 +14,7 @@ export default function AuditView() {
     try {
       const { events } = await api.getAuditEvents();
       setEvents(events);
-    } catch (e: any) { setError(e.message); }
+    } catch (error: unknown) { setError(errorMessage(error)); }
     finally { setLoading(false); }
   }, []);
 
@@ -26,7 +26,7 @@ export default function AuditView() {
       const { verification } = await api.verifyAudit();
       setVerification(verification);
       load();
-    } catch (e: any) { setError(e.message); }
+    } catch (error: unknown) { setError(errorMessage(error)); }
     finally { setVerifying(false); }
   }
 
@@ -79,7 +79,7 @@ export default function AuditView() {
         </div>
         {filtered.length === 0 && <p style={{ color: 'var(--muted)' }}>No events.</p>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {[...filtered].reverse().map((e: any, i: number) => (
+          {[...filtered].reverse().map((e, i) => (
             <div key={e.id} style={{
               display: 'grid', gridTemplateColumns: '40px 180px 220px 1fr 120px',
               gap: 12, padding: '10px 0',
